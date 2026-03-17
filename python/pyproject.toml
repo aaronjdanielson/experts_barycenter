@@ -40,7 +40,7 @@ dev = ["pytest>=7", "ruff"]
 
 [project.urls]
 Paper = "https://doi.org/[add-doi-here]"
-Repository = "https://github.com/[add-repo-here]"
+Repository = "https://github.com/aaronjdanielson/experts_barycenter"
 
 [tool.setuptools.packages.find]
 where = ["."]

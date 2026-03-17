@@ -15,8 +15,8 @@ pip install wbarycenter
 Or from source:
 
 ```bash
-git clone https://github.com/[add-repo-here]
-cd [repo]/python
+git clone https://github.com/aaronjdanielson/experts_barycenter
+cd experts_barycenter/python
 pip install -e .
 ```
 
