@@ -1,0 +1,33 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Generated figures and output (reproduced by running examples/)
+output/
+
+# Data — SPF microdata must be downloaded from Philadelphia Fed
+data/spf/SPFmicrodata.xlsx
+
+# Papers / reading PDFs (third-party copyright)
+papers/
+
+# Private working files
+crap/
+MeetingNotes.rtf
+aggregatepq.pdf
+
+# macOS
+.DS_Store
+Icon
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/

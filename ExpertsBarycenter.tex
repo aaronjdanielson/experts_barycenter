@@ -1,0 +1,91 @@
+%% Journal of Forecasting submission draft
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[left]{lineno}
+
+\doublespacing
+\linenumbers
+
+%% Math operators
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\Var}{Var}
+\DeclareMathOperator*{\supp}{supp}
+
+%% Theorem environments
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+\numberwithin{equation}{section}
+
+\begin{document}
+
+\title{Robust Aggregation of Expert Probability Forecasts\\
+       via Wasserstein Barycenters}
+
+\author{Aaron J. Danielson\thanks{Corresponding author.
+        \textit{Email:} [add email].
+        \textit{Address:} [add affiliation].}\\[0.5ex]
+        [add affiliation]
+        \and
+        Arash A. Amini\\[0.5ex]
+        [add affiliation]}
+
+\date{}
+\maketitle
+
+\begin{abstract}
+We study the aggregation of expert probability vectors over a finite outcome space.
+The standard approach, the arithmetic mean (linear opinion pool), is sensitive to extreme
+opinions: a single expert who concentrates mass on a tail outcome shifts the aggregate
+by the same amount regardless of how far that expert sits from the consensus.
+We propose the Wasserstein barycenter as a robust alternative.
+Our main result shows that under the indicator ground cost, the Wasserstein barycenter
+reduces to a constrained $\ell^1$ aggregation problem, making computation tractable and
+robustness transparent.
+For ordered outcome spaces --- the natural setting for histogram probability forecasts ---
+the Wasserstein-1 barycenter has a fully closed-form solution: it is the distribution
+whose cumulative distribution function is the component-wise median of the individual
+expert CDFs.
+We verify this formula numerically to machine precision in an application to the
+Survey of Professional Forecasters (SPF): for 2022:Q1 core CPI histogram forecasts,
+the barycenter concentrates mass at 2--4\% inflation and assigns zero probability to
+the tail bins (deflation and $\geq\!4\%$) that a minority of extreme forecasters
+pull into the arithmetic mean.
+A second application to a public health expert survey illustrates the unordered case.
+Simulation evidence confirms that the barycenter is more robust to outlying opinions
+than the arithmetic mean at an efficiency cost of 1.4--1.9 in mean squared error
+under symmetric Dirichlet populations ($N=5$--$20$), with the ratio rising
+toward $2.5$ as expert heterogeneity increases ---
+consistent with the known tradeoff between $\ell^1$ and $\ell^2$ estimation.
+\end{abstract}
+
+\bigskip
+\noindent\textbf{Keywords:} forecast combination; opinion pooling; Wasserstein distance;
+optimal transport; Survey of Professional Forecasters; robust aggregation
+
+\bigskip
+\noindent\textbf{JEL codes:} C53, C44, D83
+
+\newpage
+
+\input{DiscreteBarycenter}
+
+\begin{thebibliography}{99}
+\input{barybib}
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wbarycenter"
+version = "0.1.0"
+description = "Robust aggregation of expert probability forecasts via Wasserstein barycenters"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Aaron J. Danielson" },
+    { name = "Arash A. Amini" },
+]
+keywords = [
+    "forecast combination",
+    "opinion pooling",
+    "Wasserstein barycenter",
+    "optimal transport",
+    "robust aggregation",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "cvxpy>=1.4",
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "matplotlib>=3.7",
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff"]
+
+[project.urls]
+Paper = "https://doi.org/[add-doi-here]"
+Repository = "https://github.com/[add-repo-here]"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wbarycenter*"]
