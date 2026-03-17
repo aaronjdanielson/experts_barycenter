@@ -146,6 +146,9 @@ Fix any candidate $\Psi \in \Delta_{K-1}$.  By Lemma~\ref{lem:ot_diagonal}, the 
 \end{align*}
 using the identity $a - \min(a,b) = \max(a-b,0)$ and the fact that $\sum_k(p_l(k)-\Psi(k))=0$.  Summing over $l$ gives the objective~\eqref{eq:l1obj} up to a positive constant.  The function $\Psi \mapsto \sum_{l,k}|p_l(k)-\Psi(k)|$ is continuous on the compact simplex, so the minimum is attained.
 \end{proof}
+\begin{remark}
+The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem is therefore a direct consequence of this equivalence: the barycenter problem reduces to $\ell^1$ median estimation on the simplex, a well-studied problem in robust statistics.
+\end{remark}
 In the absence of constraints, the optimal solution can be characterized by the first-order condition
 \begin{align*}
 \Psi(x)=\text{med}\left\{p_j(x)\right\}_{j=1}^N,
@@ -204,7 +207,7 @@ When the outcome space $\Omega = \left\{1,\ldots,K\right\}$ carries a natural or
 
 \subsubsection*{Wasserstein-1 Barycenters}
 
-For $p=1$, the Wasserstein distance between $P$ and $Q$ on $\Omega$ reduces to the $L^1$ distance between their CDFs:
+For $p=1$, the Wasserstein distance between $P$ and $Q$ on $\Omega$ reduces to the $L^1$ distance between their CDFs \cite{vallender73,panaretos19}:
 \begin{align*}
 W_1(P,Q)=\sum_{k=1}^{K-1}\left|F_P(k)-F_Q(k)\right|.
 \end{align*}
