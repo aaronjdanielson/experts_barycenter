@@ -48,28 +48,14 @@
 \maketitle
 
 \begin{abstract}
-We study the aggregation of expert probability vectors over a finite outcome space.
-The standard approach, the arithmetic mean (linear opinion pool), is sensitive to extreme
-opinions: a single expert who concentrates mass on a tail outcome shifts the aggregate
-by the same amount regardless of how far that expert sits from the consensus.
+We study the aggregation of expert probability forecasts over a finite outcome space.
+The standard approach, the arithmetic mean (linear opinion pool), is simple and widely used but can be sensitive to extreme opinions: a small minority of forecasters assigning substantial mass to tail outcomes can pull the aggregate away from the majority view.
 We propose the Wasserstein barycenter as a robust alternative.
-Our main result shows that under the indicator ground cost, the Wasserstein barycenter
-reduces to a constrained $\ell^1$ aggregation problem, making computation tractable and
-robustness transparent.
-For ordered outcome spaces, which are the natural setting for histogram probability forecasts,
-the Wasserstein-1 barycenter has a fully closed-form solution: it is the distribution
-whose cumulative distribution function is the component-wise median of the individual
-expert CDFs.
-We verify this formula numerically to machine precision in an application to the
-Survey of Professional Forecasters (SPF): for 2022:Q1 core CPI histogram forecasts,
-the barycenter concentrates mass at 2--4\% inflation and assigns zero probability to
-the tail bins (deflation and $\geq\!4\%$) that a minority of extreme forecasters
-pull into the arithmetic mean.
-A second application to a public health expert survey illustrates the unordered case.
-Simulation evidence confirms that the barycenter is more robust to outlying opinions
-than the arithmetic mean at an efficiency cost of 1.4--1.9 in mean squared error
-under symmetric Dirichlet populations ($N=5$--$20$), with the ratio rising
-toward $2.5$ as expert heterogeneity increases, consistent with the known tradeoff between $\ell^1$ and $\ell^2$ estimation.
+Our main result shows that under the indicator ground cost, the barycenter reduces to a constrained $\ell^1$ aggregation problem.
+For ordered outcome spaces, the natural setting for histogram forecasts, the Wasserstein-1 barycenter has a closed-form solution: its cumulative distribution function is the component-wise median of the individual forecast CDFs.
+This yields an interpretable and easily computable robust aggregator for probability histograms.
+In an application to the 2022:Q1 Survey of Professional Forecasters core CPI histograms, the barycenter concentrates mass on the 2--4\% inflation range and assigns zero probability to tail bins that a minority of extreme forecasters pull into the arithmetic mean.
+Simulation evidence shows that the barycenter is less sensitive to outlying opinions than the arithmetic mean, at the expected efficiency cost under homogeneous expert populations.
 \end{abstract}
 
 \bigskip

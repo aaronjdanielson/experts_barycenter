@@ -5,7 +5,7 @@ Combining probabilistic forecasts from multiple experts is a central problem in 
 
 The dominant method is the \emph{linear opinion pool}, the arithmetic mean of the individual probability vectors \cite{genest86,ohagan06,timmermann06}.  Its appeal is axiomatic: it is the only combination rule consistent with marginalisation across subsets of outcomes \cite{genest86}.  In well-behaved panels with exchangeable, well-calibrated forecasters it is also asymptotically efficient.  Its practical weakness is sensitivity to heterogeneous or extreme opinions.  A single forecaster who places substantial mass on an extreme outcome shifts the aggregate by $1/N$ of that distance, regardless of how far outside the consensus view that forecaster sits.  In the SPF, some forecasters routinely assign 30--50\% probability to tail scenarios that the median forecaster assigns near zero; the arithmetic mean faithfully imports these extreme probabilities into the aggregate.
 
-The forecast combination literature has proposed a range of alternatives to the arithmetic mean \cite{clemen89,timmermann06}.  The \emph{logarithmic opinion pool} (geometric mean, renormalized) shrinks extreme probabilities because the geometric mean of a near-zero probability is near zero \cite{genest86}; \cite{satopaa14} show that \emph{extremizing} (multiplying log-odds by a factor greater than one) sharpens aggregate predictions when experts are individually underconfident.  \cite{ranjan10} establish that nontrivially combined calibrated forecasts are in general no longer calibrated under the linear pool, and \cite{gneiting13} study conditions under which combining predictive distributions can recover calibration.  A different robustness strategy is trimming: removing the most extreme forecasters before averaging, analogous to a trimmed mean in location estimation.  Proper scoring rules provide a principled basis for evaluating probabilistic forecasts \cite{gneiting07}, and combination methods that minimize expected scoring-rule loss have been studied in the continuous-distribution setting.  None of these approaches offers a geometry-based robustness guarantee that is directly interpretable for finite-category histogram forecasts.
+The forecast combination literature has proposed a range of alternatives to the arithmetic mean \cite{clemen89,timmermann06}.  The \emph{logarithmic opinion pool} (geometric mean, renormalized) shrinks extreme probabilities because the geometric mean of a near-zero probability is near zero \cite{genest86}; \cite{satopaa14} show that \emph{extremizing} (multiplying log-odds by a factor greater than one) sharpens aggregate predictions when experts are individually underconfident.  \cite{ranjan10} establish that nontrivially combined calibrated forecasts are in general no longer calibrated under the linear pool, and \cite{gneiting13} study conditions under which combining predictive distributions can recover calibration.  A different robustness strategy is trimming: removing the most extreme forecasters before averaging, analogous to a trimmed mean in location estimation.  Proper scoring rules provide a principled basis for evaluating probabilistic forecasts \cite{gneiting07}, and combination methods that minimize expected scoring-rule loss have been studied in the continuous-distribution setting.  Other nonlinear pooling methods, such as power means, modify the influence of extreme probabilities through functional transformation; our approach instead introduces robustness through the geometry of the outcome space via optimal transport.  None of these approaches offers a geometry-based robustness guarantee that is directly interpretable for finite-category histogram forecasts.
 
 \subsection*{Relation to existing work}
 
@@ -13,58 +13,11 @@ The forecast-combination literature offers three main strategies for reducing se
 
 Barycenter-based combination has recently been studied in the continuous-distribution setting.  For distributions on $\mathbb{R}$, the $W_2$ barycenter equals the distribution whose quantile function is the component-wise mean of individual quantile functions \cite{agueh2011barycenters}; \cite{lecoz23} apply this to multi-model ensemble forecasting in climatology.  \cite{taylor26} proposes depth-based trimmed means and median-like aggregates for interval and CDF forecasts, sharing our goal of robust aggregation but using a different geometric construction.
 
-Our contribution is distinct along three dimensions.  First, we work in a finite outcome space with the indicator ground cost, where the Wasserstein objective simplifies to a constrained $\ell^1$ problem (Theorem~\ref{thm:l1}): a simplification without analogue in the continuous setting.  Second, for ordered finite spaces (the histogram-forecast case) we derive a fully explicit closed form: the $W_1$ barycenter CDF is the component-wise median of individual CDFs (Proposition~\ref{prop:w1}), computable in closed form with no solver.  Third, we apply this framework to the SPF histogram forecasts, the canonical source of probabilistic macroeconomic predictions, and show that the barycenter suppresses tail mass that a minority of extreme forecasters impose on the arithmetic mean, a practical robustness property directly relevant to forecast users.  This paper therefore contributes a forecasting-relevant theory result that turns the Wasserstein barycenter into a usable, interpretable robust aggregator for histogram forecasts, in a setting where prior barycenter work does not apply and where trimming and reweighting approaches require data not always available.
-
-This paper proposes the \emph{Wasserstein barycenter} as a robust alternative for settings where historical reweighting by forecast accuracy is unavailable or undesirable: one-shot expert elicitations, new panels, or rare events where track records are absent.  The barycenter minimizes total transport cost from the aggregate to the expert distributions and inherits robustness from this geometric structure: extreme opinions require large transport cost to incorporate and therefore receive less influence on the aggregate.  Our main theoretical contribution is showing that over finite unordered outcome spaces, the Wasserstein objective simplifies to an $\ell^1$ problem in the probability masses themselves (Theorem~\ref{thm:l1}), which makes both computation and robustness analysis tractable.  For ordered outcome spaces, the natural setting for probability histogram forecasts, the $W_1$ barycenter admits a fully explicit solution: it is the distribution whose cumulative distribution function (CDF) is the component-wise median of the individual CDFs (Proposition~\ref{prop:w1}).  This provides a direct, closed-form robust alternative to the arithmetic mean of CDFs.
+This paper proposes the \emph{Wasserstein barycenter} as a robust alternative for settings where historical reweighting by forecast accuracy is unavailable or undesirable: one-shot expert elicitations, new panels, or rare events where track records are absent.  The barycenter minimizes total transport cost from the aggregate to the expert distributions; extreme opinions require large transport cost to incorporate and therefore receive less influence on the aggregate.  Our main theoretical contribution is showing that over finite unordered outcome spaces, the Wasserstein objective simplifies to a constrained $\ell^1$ problem in the probability masses (Theorem~\ref{thm:l1}), a simplification without analogue in the continuous setting that makes both computation and robustness analysis tractable.  For ordered outcome spaces, the natural setting for histogram forecasts, the $W_1$ barycenter admits a fully explicit closed form: the distribution whose CDF is the component-wise median of the individual CDFs (Proposition~\ref{prop:w1}), computable without a solver.  We apply this framework to the SPF histogram forecasts and show that the barycenter suppresses tail mass that a minority of extreme forecasters impose on the arithmetic mean, in a setting where trimming and reweighting approaches require data not always available.
 
 Our main empirical application is the 2022:Q1 Survey of Professional Forecasters, using the 10 ordered core CPI bins.  The $W_1$ barycenter assigns zero mass to the tail bins (``will decline'' and $\geq\!4\%$) that a minority of extreme forecasters drive into the arithmetic mean, concentrating instead on the 2--4\% range favoured by the majority.  The LP solver and the closed-form CDF-median formula agree to machine precision, confirming Proposition~\ref{prop:w1}.  A secondary application to a survey of 30 public health experts allocating a hypothetical budget across 20 opioid-related interventions illustrates the unordered-outcome case: with the indicator ground cost, the barycenter shifts mass toward majority-preferred interventions and away from highly dispersed supply-side interventions \cite{mcandrew21}.
 
 The remainder of the paper is organized as follows.  Section~\ref{sec:wbary} defines the Wasserstein barycenter over finite outcome spaces and states the two main theoretical results: the $\ell^1$ simplification theorem for unordered spaces and the CDF-median characterization for ordered spaces.  Section~\ref{sec:robustness} formalizes robustness via the empirical influence function and presents simulation evidence.  Section~\ref{sec:simulations} reports a systematic simulation study.  Sections~\ref{sec:opioid} and~\ref{sec:spf} present the two applications.  Section~\ref{sec:discussion} concludes.  Appendix~A extends the framework to network-valued outcomes; Appendix~B contains a technical proposition on the full-diagonal structure of optimal transport plans in barycenter solutions.
-
-
-\subsection{When to Use the Wasserstein Barycenter}
-
-The barycenter is most useful when (i) expert opinions are heterogeneous and a minority of experts place substantial mass on tail outcomes, (ii) outcomes carry either an unordered categorical structure (where the indicator ground cost is natural) or an ordered-bin structure (where the $W_1$ distance rewards compactly supported aggregates), and (iii) the analyst wants an aggregate that is itself a full probability distribution over the original outcome space.  When experts are approximately homogeneous and well-calibrated, the arithmetic mean is more efficient and should be preferred.
-
-\subsection{Power Mean Benchmark Aggregators}
-
-The power mean family provides a useful class of benchmark aggregators parameterized by a single exponent $r$.  For large $r$ it emphasizes states that many experts assign high probability; for small $r$ it emphasizes states assigned low probability by all experts.  The arithmetic mean is the special case $r=1$; the geometric mean (log pool) is the limit $r\to 0$.
-
-The $r$\textsuperscript{th} power mean aggregate is
-\begin{equation}
-\label{modfam}
-\Psi(k;r)\propto \left(\frac{1}{N}\sum_{i=1}^N p_i(k)^r\right)^{1/r}.
-\end{equation}
-\begin{proposition}
-\label{prop:powermean}
-The power mean aggregate $\Psi(\cdot\,;r)$ satisfies unanimity and is partially bounded: for $r<1$
-\begin{align*}
-\min_j p_j(k) \leq \Psi(k),
-\end{align*}
-and for $r>1$
-\begin{align*}
-\Psi(k) \leq \max_j p_j(k).
-\end{align*}
-\end{proposition}
-When $K > 2$, boundedness can fail.  The following counterexample illustrates.  Let $K=3$ and
-\[
-M=\begin{bmatrix}
-    0.792 & 0.018 & 0.190 \\
-    0.058 & 0.676 & 0.266
-\end{bmatrix}.
-\]
-Then $\Psi(\gamma;r)\approx 0.167 < 0.190 = \min\{P_1(\gamma), P_2(\gamma)\}$ for $r=2$, violating the lower bound.  The failure arises because with $K > 2$ the complementarity between components that guarantees boundedness for $K=2$ no longer holds.
-
-\begin{remark}
-The arithmetic mean, corresponding to $r=1$, is always a bounded aggregating measure.  Since $\Psi(k;1)=\frac{1}{N}\sum_{j=1}^N p_j(k)$ is a convex combination of the component probabilities, the inequality $\min_j p_j(k)\leq\Psi(k;1)\leq\max_j p_j(k)$ holds for every $k\in\Omega$.
-\end{remark}
-\begin{corollary}
-The set of values $r$ for which $\Psi(\cdot\,;r)$ is a bounded aggregating measure is nonempty and contains an open interval about $r=1$.
-\end{corollary}
-\begin{proof}
-By the preceding remark, $\Psi(\cdot\,;1)$ is bounded.  For each $k$, either (i) $p_j(k)$ is identical across all $j$, in which case $\Psi(k;r)=p_j(k)$ for all $r$ and the bound holds with equality everywhere, or (ii) the values $\{p_j(k)\}$ are not all equal, in which case $\min_j p_j(k)<\Psi(k;1)<\max_j p_j(k)$ strictly.  Since $\Psi(k;\cdot)$ is continuous in $r$, the strict inequalities in case (ii) are preserved on a neighborhood of $r=1$.  Taking the finite intersection over all $k\in\Omega$ yields an open interval about $r=1$ on which $\Psi(\cdot\,;r)$ is bounded.
-\end{proof}
-
 
 
 \section{Wasserstein Barycenters as Aggregate Measures}
@@ -88,7 +41,7 @@ The authors of \cite{dbary} present results for the support of discrete Wasserst
 \begin{align*}
 \sum_{j=1}^N\left(\min_{\pi\in\Gamma(p_j,\Psi)}\sum_{x=1}^K\sum_{y=1}^K d(x,y)^p\pi(x,y)\right).
 \end{align*}
-In this section we consider two cases.  In the first case the distance function is the indicator function; i.e., the distance is zero when the components match and one otherwise.  In the second case, elements in $\Omega$ are taken to be matrices.   
+We consider two ground costs: the indicator distance for unordered outcome spaces (Section~\ref{sec:unordered}) and the absolute-value distance $d(x,y)=|x-y|$ for ordered spaces.
 
 \subsection{Unordered Finite Outcome Space}
 \label{sec:unordered}
@@ -147,59 +100,8 @@ Fix any candidate $\Psi \in \Delta_{K-1}$.  By Lemma~\ref{lem:ot_diagonal}, the 
 using the identity $a - \min(a,b) = \max(a-b,0)$ and the fact that $\sum_k(p_l(k)-\Psi(k))=0$.  Summing over $l$ gives the objective~\eqref{eq:l1obj} up to a positive constant.  The function $\Psi \mapsto \sum_{l,k}|p_l(k)-\Psi(k)|$ is continuous on the compact simplex, so the minimum is attained.
 \end{proof}
 \begin{remark}
-The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem is therefore a direct consequence of this equivalence: the barycenter problem reduces to $\ell^1$ median estimation on the simplex, a well-studied problem in robust statistics.
+The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem reduces the barycenter problem to $\ell^1$ median estimation on the simplex: the unconstrained minimizer assigns each state the coordinatewise median of the expert opinions, and the simplex constraint shifts this toward a normalized version of the median.  The arithmetic mean generally does not satisfy this condition and therefore does not generally coincide with the Wasserstein barycenter.
 \end{remark}
-In the absence of constraints, the optimal solution can be characterized by the first-order condition
-\begin{align*}
-\Psi(x)=\text{med}\left\{p_j(x)\right\}_{j=1}^N,
-\end{align*}
-but the vector of medians need not sum to one.  Forming the constrained optimization problem gives the objective function
-\begin{align*}
-\mathcal{L}(\Psi,\lambda)= \sum_{j=1}^N\sum_x \left| p_j(x) - \Psi(x)\right| + \lambda(1-\sum_x\Psi(x))
-\end{align*}
-with first-order condition
-\begin{align*}
-\frac{\partial}{\partial \Psi(x)}\mathcal{L} = \sum_{j=1}^N \text{sign}(p_j(x)-\Psi(x)) = \lambda
-\end{align*}
-for all $x$ in the support of $\left\{p_j(x)\right\}$.  Since the constraint is binding, $\lambda\geq 0$.  If $\lambda = 0$, then $\Psi$ must be a median.  The set of solutions are all medians that satisfy the constraint; i.e.,
-\begin{align*}
-\left\{\Psi\in\Delta_{K-1}:\sum_{j=1}^N \text{sign}(p_j(x)-\Psi(x))=0,\,\forall x\right\}.
-\end{align*}
-
-\begin{proposition}
-The egalitarian aggregating measure, $\bar{P}$ is a Finite Wasserstein Barycenter if
-\begin{align*}
-\sum_{j=1}^N \text{sign}(p_j(x)-\bar{P}(x))=0
-\end{align*}
-for all $x$ in the state space.
-\end{proposition}
-Take the following example with $N=4$ and $K=3$.  When
-\begin{align*}
-M=\left[
-\begin{array}{ccc}
-.1 & .4 & .5 \\
-.2 & .6 & .2 \\
-.35 & .15 & .5 \\
-.6 &.2 &.2 \\
-\end{array}
-\right]
-\end{align*}
-then the set of Wasserstein Barycenters is
-\begin{align*}
-\left\{\Psi\in\Delta_{2}:\Psi(1)\in[.2,.35],\Psi(2)\in[.2,.4],\Psi(3)\in[.2,.5]\right\}.
-\end{align*}
-Note that $\bar{P}=(0.3125, 0.3375, 0.35)$ is contained in this set.  But, setting 
-\begin{align*}
-M=\left[
-\begin{array}{ccc}
-.05 & .5 & .45 \\
-.1 & .3 & .6 \\
-.9 & .05 & .05 \\
-.15 &.4 &.45 \\
-\end{array}
-\right]
-\end{align*}
-shows that the egalitarian aggregating measure need not be contained in the set of Wasserstein Barycenters since $.525 \notin [.1,.15]$.
 
 \subsection{Discrete Barycenters for Ordered Spaces}
 
@@ -229,14 +131,6 @@ Since the objective separates across $k$, the unconstrained minimizer at each $k
 \end{proof}
 
 The W-1 barycenter has a natural interpretation: it is the distribution whose CDF lies at the ``center'' of the collection in the $L^1$ sense.  Boundedness of $\Psi$ in the CDF sense is immediate since the median is bounded by the minimum and maximum: $\min_j F_j(k)\leq F_\Psi(k)\leq\max_j F_j(k)$ for all $k$.
-
-\subsubsection*{Wasserstein-2 Barycenters}
-
-For $p=2$, optimal transport on the real line is achieved by the comonotone coupling, and the W-2 barycenter of $\left\{P_1,\ldots,P_N\right\}$ has quantile function equal to the arithmetic mean of the component quantile functions \cite{agueh2011barycenters}:
-\begin{align*}
-F_\Psi^{-1}(t)=\frac{1}{N}\sum_{j=1}^N F_j^{-1}(t),\quad t\in(0,1].
-\end{align*}
-For distributions on a continuous support, this immediately yields a valid distribution.  For discrete distributions on $\left\{1,\ldots,K\right\}$, however, the arithmetic mean of integer-valued quantile functions need not be integer-valued, so the barycenter may require support outside $\Omega$.  This distinguishes the ordered W-2 case from both the W-1 case above and the unordered case of Section~\ref{sec:unordered}: the barycenter is not in general a probability mass function over the original state space.  \cite{dbary} characterize the support of discrete Wasserstein barycenters in Euclidean space in detail; their results apply directly to the ordered finite case here.
 
 \section{Robustness of Aggregating Measures}
 \label{sec:robustness}
@@ -498,10 +392,6 @@ Figure~\ref{fig:spf_cdfs} shows the individual CDFs (grey), the arithmetic-mean 
 \label{fig:spf_cdfs}
 \end{figure}
 
-\subsection{Comparison with the NYT Opioid Application}
-
-Together, the two applications illustrate complementary aspects of the method.  In the opioid survey, outcomes are unordered and the ground cost is the indicator metric; both the AM and the barycenter use the same information about individual allocations.  The barycenter shifts mass toward majority-preferred interventions and away from highly-dispersed supply-side interventions.  In the SPF application, outcomes are ordered and the $W_1$ cost rewards compactly-supported aggregates; the barycenter correspondingly ignores the few forecasters who predict extreme tails and concentrates mass on the modal 2--3\% range.  In both cases the key difference is the same: the barycenter's Wasserstein objective penalizes disagreement through transport cost, while the arithmetic mean weights every opinion equally regardless of distance.
-
 \section{Discussion}
 \label{sec:discussion}
 
@@ -525,10 +415,6 @@ d(Y,Y')=\sum_{m\neq n}\left|Y_{mn}-Y'_{mn}\right|.
 A probability mass function over $\mathcal{Y}_n$ assigns probability $p_j(Y)$ to each network $Y\in\mathcal{Y}_n$.  Existence of the barycenter follows from the compactness argument of Theorem~\ref{thm:l1} applied to the finite metric space $(\mathcal{Y}_n, d)$.  The full-diagonal criterion (Proposition~\ref{prop:fulldiag}) carries over: in any optimal solution, $\Pi^{(j)}_{YY}=\min\{p_j(Y),\Psi(Y)\}$ for each $Y$.
 
 Unlike the unordered case where all off-diagonal pairs are equidistant, pairs of networks differing in $k$ edges incur cost $k$ under $W_1$ (or $k^2$ under $W_2$).  After diagonal entries are maximized, remaining mass is assigned to off-diagonal entries in order of increasing Hamming distance.
-
-\begin{example}
-For $n=2$ nodes the state space has four elements $\{Y_{00}, Y_{01}, Y_{10}, Y_{11}\}$ with Hamming distances $d(Y_{00},Y_{11})=d(Y_{01},Y_{10})=2$ and all other off-diagonal pairs at distance 1.  For $\Psi=(0.2, 0.4, 0.3, 0.1)$ and $p_j=(0.1, 0.3, 0.4, 0.2)$, the diagonal entries are $\min(0.2,0.1)=0.1$, $\min(0.4,0.3)=0.3$, $\min(0.3,0.4)=0.3$, $\min(0.1,0.2)=0.1$, and remaining mass is placed on distance-1 pairs first.
-\end{example}
 
 The result extends to integer-valued (weighted) networks by replacing $\{0,1\}$ with $\{0,\ldots,M\}$ and using the $\ell^1$ Hamming distance.
 
