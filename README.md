@@ -11,7 +11,7 @@ The **Wasserstein barycenter** is a robust alternative to the arithmetic mean (l
 
 ---
 
-![Probability mass on the realized outcome bin](output/spf_backtest/fig_bt6_mass_correct_bin.png)
+![Probability mass on the realized outcome bin](figures/fig_bt6_mass_correct_bin.png)
 
 *Probability mass assigned to the realized Q4/Q4 core CPI outcome bin, quarter by quarter (2007–2025). The W₁ barycenter (blue) consistently places more mass on the correct bin than the arithmetic mean (red). Dashed lines mark sample means (BC: 0.424, AM: 0.367). Bottom panel shows the per-quarter difference; blue bars indicate quarters where the barycenter wins.*
 
