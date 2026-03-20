@@ -138,6 +138,30 @@ def cdf_median(pmfs: np.ndarray) -> np.ndarray:
     return pmf
 
 
+def log_pool(pmfs: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+    """
+    Logarithmic opinion pool (geometric mean, renormalized).
+    LP(k) ∝ prod_j p_j(k)^{1/N} = exp(mean_j log p_j(k)).
+    Clips to eps before log to avoid -inf.
+    """
+    log_mean = np.mean(np.log(np.maximum(pmfs, eps)), axis=0)
+    unnorm   = np.exp(log_mean - log_mean.max())   # subtract max for stability
+    return unnorm / unnorm.sum()
+
+
+def trimmed_mean(pmfs: np.ndarray, trim: float = 0.10) -> np.ndarray:
+    """
+    Symmetric trimmed arithmetic mean.
+    For each bin, removes the bottom and top `trim` fraction of values
+    before averaging.  Uses scipy.stats.trim_mean under the hood.
+    """
+    from scipy.stats import trim_mean as _trim_mean
+    result = np.array([_trim_mean(pmfs[:, k], trim) for k in range(pmfs.shape[1])])
+    result = np.maximum(result, 0.0)
+    s = result.sum()
+    return result / s if s > 0 else np.ones(pmfs.shape[1]) / pmfs.shape[1]
+
+
 # ── Scoring ──────────────────────────────────────────────────────────────────
 
 def rps(pmf: np.ndarray, bin_idx: int) -> float:
@@ -239,6 +263,8 @@ def run_backtest(horizon: str = "current"):
 
             am  = pmfs.mean(axis=0)
             bc  = cdf_median(pmfs)
+            lp  = log_pool(pmfs)
+            tm  = trimmed_mean(pmfs, trim=0.10)
             csv = cross_sectional_variance(pmfs)
             n   = len(pmfs)
 
@@ -248,8 +274,16 @@ def run_backtest(horizon: str = "current"):
                 "realized": realized_val, "bin_idx": bin_idx,
                 "am_rps":   rps(am, bin_idx),
                 "bc_rps":   rps(bc, bin_idx),
+                "lp_rps":   rps(lp, bin_idx),
+                "tm_rps":   rps(tm, bin_idx),
                 "am_ls":    log_score(am, bin_idx),
                 "bc_ls":    log_score(bc, bin_idx),
+                "lp_ls":    log_score(lp, bin_idx),
+                "tm_ls":    log_score(tm, bin_idx),
+                "am_mass":  am[bin_idx],
+                "bc_mass":  bc[bin_idx],
+                "lp_mass":  lp[bin_idx],
+                "tm_mass":  tm[bin_idx],
                 "dispersion": csv,
             })
 
@@ -269,23 +303,33 @@ def run_backtest(horizon: str = "current"):
 
 
 def _print_summary(df: pd.DataFrame, horizon: str, series: str):
+    from scipy import stats
     print(f"\n--- {series} series | n={len(df)} quarters ---")
-    for metric, label, better in [("rps", "RPS", "lower"), ("ls", "log score", "higher")]:
-        am_col = f"am_{metric}"
-        bc_col = f"bc_{metric}"
+    methods = [("am", "AM"), ("bc", "BC"), ("lp", "Log pool"), ("tm", "Trimmed mean")]
+    for metric, label, better in [("rps", "RPS", "lower"), ("ls", "log score", "higher"),
+                                   ("mass", "P(correct bin)", "higher")]:
+        if f"am_{metric}" not in df.columns:
+            continue
         print(f"\n  {label} ({better} is better):")
-        print(f"    AM  mean={df[am_col].mean():.4f}  median={df[am_col].median():.4f}")
-        print(f"    BC  mean={df[bc_col].mean():.4f}  median={df[bc_col].median():.4f}")
-        diff = df[bc_col] - df[am_col]
-        pct_bc_better = (
-            (diff < 0).mean() * 100 if metric == "rps"
-            else (diff > 0).mean() * 100
-        )
-        print(f"    BC better in {pct_bc_better:.1f}% of quarters")
-        # Diebold-Mariano via sign test p-value (sign test is robust)
-        from scipy import stats
-        stat, pval = stats.wilcoxon(diff, alternative="less" if metric == "rps" else "greater")
-        print(f"    Wilcoxon signed-rank p={pval:.4f} (BC vs AM)")
+        for col_prefix, name in methods:
+            col = f"{col_prefix}_{metric}"
+            if col not in df.columns:
+                continue
+            print(f"    {name:<14} mean={df[col].mean():.4f}")
+        # Wilcoxon tests vs AM
+        am_col = f"am_{metric}"
+        for col_prefix, name in methods[1:]:
+            col = f"{col_prefix}_{metric}"
+            if col not in df.columns:
+                continue
+            diff = df[col] - df[am_col]
+            alt  = "less" if better == "lower" else "greater"
+            try:
+                _, pval = stats.wilcoxon(diff, alternative=alt)
+            except Exception:
+                pval = float("nan")
+            wins = (diff < 0).mean() * 100 if better == "lower" else (diff > 0).mean() * 100
+            print(f"    {name:<14} wins {wins:.1f}%  Wilcoxon p={pval:.4f} vs AM")
 
 
 def _plot_scores(df: pd.DataFrame, horizon: str, series: str):

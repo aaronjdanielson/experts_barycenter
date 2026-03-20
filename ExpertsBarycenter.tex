@@ -5,6 +5,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{graphicx}
+\usepackage{booktabs}
 \usepackage{subcaption}
 \usepackage[hidelinks]{hyperref}
 \usepackage[margin=1in]{geometry}
@@ -49,13 +50,15 @@
 
 \begin{abstract}
 We study the aggregation of expert probability forecasts over a finite outcome space.
-The standard approach, the arithmetic mean (linear opinion pool), is widely used but sensitive to extreme opinions: a small minority of forecasters assigning substantial mass to tail outcomes can pull the aggregate away from the majority view.
+The standard approach, the arithmetic mean (linear opinion pool), is sensitive to extreme opinions: a minority assigning substantial mass to tail outcomes can distort the aggregate away from the majority view.
 We propose the Wasserstein barycenter as a robust alternative.
-Our main theoretical result shows that under the indicator ground cost, the barycenter reduces to a constrained $\ell^1$ aggregation problem.
-For ordered outcome spaces, the natural setting for histogram forecasts, the Wasserstein-1 barycenter has a closed-form solution: its cumulative distribution function is the component-wise median of the individual forecast CDFs.
-We validate the approach with a historical backtest on 76 quarters of Survey of Professional Forecasters core CPI histograms (2007--2025), scoring both methods against realized outcomes using the Ranked Probability Score and probability mass on the realized bin.
-The barycenter achieves a statistically significant improvement in mean Ranked Probability Score (Wilcoxon $p = 0.005$) and places more probability mass on the realized outcome bin in 75\% of quarters ($p < 0.001$); a dispersion-conditional analysis identifies when each method is preferred.
-Simulation evidence confirms that the robustness advantage comes with an efficiency cost under homogeneous expert populations.
+Under the indicator ground cost the barycenter reduces to an $\ell^1$ aggregation problem; for ordered outcome spaces it admits a closed form---the distribution whose CDF is the component-wise median of the individual CDFs---computable without a solver.
+We validate the framework across three datasets.
+On 94 binary questions from the Good Judgment Project ($\sim\!900$ forecasters each), the barycenter reduces mean Brier score by 12.5\% relative to the arithmetic mean ($p < 0.001$).
+On 76 quarters of U.S.\ Survey of Professional Forecasters core CPI histograms (2007--2025), benchmarked against the arithmetic mean, logarithmic pool, and trimmed mean, the barycenter and trimmed mean both achieve lower mean RPS than the arithmetic mean ($p < 0.01$, Wilcoxon), with the advantage concentrated in low-dispersion quarters; the logarithmic pool has the highest P(correct bin) but worst RPS, a divergence explained by the $\ell^1$--$\ell^2$ mismatch between the pooling objective and the scoring rule.
+A replication on the ECB Survey of Professional Forecasters confirms the dispersion-conditional pattern across the Euro-area panel.
+A dispersion-adaptive convex blend achieves the lowest out-of-sample forecast score in the historical evaluation.
+Simulation evidence characterizes the robustness--efficiency tradeoff and identifies conditions under which each method is preferred.
 \end{abstract}
 
 \bigskip

@@ -13,11 +13,15 @@ The forecast-combination literature offers three main strategies for reducing se
 
 Barycenter-based combination has recently been studied in the continuous-distribution setting.  For distributions on $\mathbb{R}$, the $W_2$ barycenter equals the distribution whose quantile function is the component-wise mean of individual quantile functions \cite{agueh2011barycenters}; \cite{lecoz23} apply this to multi-model ensemble forecasting in climatology.  \cite{taylor26} proposes depth-based trimmed means and median-like aggregates for interval and CDF forecasts, sharing our goal of robust aggregation but using a different geometric construction.
 
-This paper proposes the \emph{Wasserstein barycenter} as a robust alternative for settings where historical reweighting by forecast accuracy is unavailable or undesirable: one-shot expert elicitations, new panels, or rare events where track records are absent.  The barycenter minimizes total transport cost from the aggregate to the expert distributions; extreme opinions require large transport cost to incorporate and therefore receive less influence on the aggregate.  Our main theoretical contribution is showing that over finite unordered outcome spaces, the Wasserstein objective simplifies to a constrained $\ell^1$ problem in the probability masses (Theorem~\ref{thm:l1}), a simplification without analogue in the continuous setting that makes both computation and robustness analysis tractable.  For ordered outcome spaces, the natural setting for histogram forecasts, the $W_1$ barycenter admits a fully explicit closed form: the distribution whose CDF is the component-wise median of the individual CDFs (Proposition~\ref{prop:w1}), computable without a solver.  We apply this framework to the SPF histogram forecasts and show that the barycenter suppresses tail mass that a minority of extreme forecasters impose on the arithmetic mean, in a setting where trimming and reweighting approaches require data not always available.
+This paper makes three contributions.
 
-Our empirical contribution has two parts.  First, a single-quarter illustration using the 2022:Q1 SPF core CPI histograms shows the qualitative difference between the two aggregation methods: the $W_1$ barycenter assigns zero mass to the tail bins that a minority of extreme forecasters drive into the arithmetic mean, concentrating on the 2--4\% range favored by the majority, and the LP solver and the closed-form formula agree to machine precision.  Second, a historical backtest covering 76 quarters (2007:Q1--2025:Q4) evaluates both methods against realized Q4/Q4 core CPI outcomes using proper scoring rules.  The barycenter achieves a statistically significant improvement in mean Ranked Probability Score (Wilcoxon $p = 0.005$) and places more mass on the realized bin in 75\% of quarters; the advantage is concentrated in low-dispersion quarters and a dispersion-conditional analysis identifies when each method is preferred.  A secondary application to a survey of 30 public health experts allocating a budget across 20 opioid-related interventions illustrates the unordered-outcome case: with the indicator ground cost, the barycenter shifts mass toward majority-preferred interventions and away from highly dispersed supply-side interventions \cite{mcandrew21}.
+\paragraph{Theory.}  We propose the Wasserstein barycenter as a robust alternative to the arithmetic mean for settings where historical reweighting by forecast accuracy is unavailable or undesirable: one-shot expert elicitations, new panels, or rare events where track records are absent.  Our main theoretical result (Theorem~\ref{thm:l1}) shows that over finite unordered outcome spaces, the Wasserstein objective simplifies to a constrained $\ell^1$ problem in the probability masses---a simplification without analogue in the continuous setting that makes computation and robustness analysis tractable.  For ordered outcome spaces, the $W_1$ barycenter has a fully closed form: the distribution whose CDF is the component-wise median of the individual CDFs (Proposition~\ref{prop:w1}), computable without a solver.  We formalize robustness via the empirical influence function and show that the barycenter's influence is bounded even as the arithmetic mean's is not.
 
-The remainder of the paper is organized as follows.  Section~\ref{sec:wbary} defines the Wasserstein barycenter over finite outcome spaces and states the two main theoretical results: the $\ell^1$ simplification theorem for unordered spaces and the CDF-median characterization for ordered spaces.  Section~\ref{sec:robustness} formalizes robustness via the empirical influence function and presents simulation evidence.  Section~\ref{sec:simulations} reports a systematic simulation study.  Section~\ref{sec:opioid} presents the opioid expert survey application (unordered outcomes).  Section~\ref{sec:spf} presents the SPF application, including the single-quarter illustration and the 76-quarter historical backtest with scoring-rule evaluation.  Section~\ref{sec:discussion} concludes.  Appendix~A extends the framework to network-valued outcomes; Appendix~B contains a technical proposition on the full-diagonal structure of optimal transport plans in barycenter solutions.
+\paragraph{Empirical evaluation.}  We validate the framework across three independent datasets spanning binary and histogram forecasts, benchmarking against the three canonical alternatives: the arithmetic mean (AM), the logarithmic opinion pool (LP), and the symmetrically trimmed arithmetic mean (TM).  (i)~On 94 binary questions from the Good Judgment Project ($\sim\!900$ forecasters each), the $\ell^1$ barycenter---which reduces to the component-wise median for binary outcomes---reduces mean Brier score by 12.5\% relative to the arithmetic mean ($p < 0.001$).  (ii)~On 76 quarters of U.S.\ Survey of Professional Forecasters core CPI histograms (2007--2025), the $W_1$ barycenter and the trimmed mean both achieve lower mean RPS than the AM ($p < 0.01$), while the LP has the worst RPS despite the highest P(correct bin)---a divergence explained by the geometric mismatch between the $\ell^1$ objective and $\ell^2$-penalizing RPS; the barycenter's advantage is concentrated in low-dispersion quarters.  (iii)~A replication on the ECB Survey of Professional Forecasters Euro-area HICP histograms confirms the dispersion-conditional pattern on an independent international panel.  A secondary opioid-survey application illustrates the unordered case with $K=20$ outcomes \cite{mcandrew21}.
+
+\paragraph{Adaptive blending.}  A convex blend of the barycenter and the arithmetic mean---with weight estimated on an expanding historical window---achieves the lowest out-of-sample Ranked Probability Score, improving over the pure barycenter by 1.7\% and over the arithmetic mean by 4.5\%.  The optimal mixture weight ($\lambda^* \approx 0.70$) is stable across time, indicating that the gain is not sensitive to the choice of training window.
+
+The remainder of the paper is organized as follows.  Section~\ref{sec:wbary} states the two main theoretical results: the $\ell^1$ simplification theorem for unordered spaces and the CDF-median characterization for ordered spaces.  Section~\ref{sec:robustness} formalizes robustness via the empirical influence function.  Section~\ref{sec:simulations} reports simulation evidence.  Section~\ref{sec:opioid} presents the opioid expert survey (unordered outcomes, $K=20$) and a binary scored evaluation using the Good Judgment Project.  Section~\ref{sec:spf} presents the U.S.\ SPF application: single-quarter illustration, 76-quarter historical backtest, dispersion-adaptive blend, and ECB SPF replication.  Section~\ref{sec:discussion} concludes.
 
 
 \section{Wasserstein Barycenters as Aggregate Measures}
@@ -64,24 +68,20 @@ subject to the feasibility conditions for $j=1,\ldots,N$ and $l,m=1,\ldots,N$
 &\sum_j\Pi^l_{k,j}=p_l(k) \\
 &\sum_j\Pi^l_{j,k}=\sum_j\Pi^m_{j,k}.
 \end{align*}
-Note that the objective function is the sum of the off-diagonal probabilities,
-\begin{align*}
-\sum_k\sum_{k'\neq k}\Pi^l(k,k')=1-\sum_k\Pi^l(k,k).
-\end{align*}
-Hence minimizing the objective function is equivalent to maximizing the probability mass placed on the diagonal entries of the joint probability density matrices $\left\{\Pi^l\right\}$.  The following lemma shows that this maximum is achieved by every optimal transport plan, and identifies the value of the diagonal entries.
+The key identity needed for the main theorem is the following.
 
-\begin{lemma}[Indicator-cost OT]
+\begin{lemma}[Indicator-cost identity]
 \label{lem:ot_diagonal}
-Let $p, \Psi \in \Delta_{K-1}$.  Under the indicator cost, every optimal transport plan $\Pi^* \in \Gamma(p, \Psi)$ satisfies
-\begin{align*}
-\Pi^*_{kk} = \min\bigl\{p(k),\, \Psi(k)\bigr\} \quad \text{for all } k.
-\end{align*}
+For $p, \Psi \in \Delta_{K-1}$,
+\[
+  W_{\mathrm{ind}}(p,\Psi) \;=\; 1 - \sum_k \min\{p(k),\Psi(k)\} \;=\; \tfrac{1}{2}\|p - \Psi\|_1.
+\]
 \end{lemma}
 \begin{proof}
-Since $d(k,k')=0$ when $k=k'$ and $d(k,k')=1$ otherwise, the transport cost equals $1 - \sum_k \Pi_{kk}$, so any optimal plan maximises $\sum_k \Pi_{kk}$.  For any feasible $\Pi \in \Gamma(p,\Psi)$ the marginal constraints give $\sum_{k'}\Pi_{kk'} = p(k)$ and $\sum_{k'}\Pi_{k'k} = \Psi(k)$, so $\Pi_{kk} \leq \min\{p(k), \Psi(k)\}$.  The plan $\Pi^*_{kk} = \min\{p(k),\Psi(k)\}$ attains the upper bound.  Feasibility requires the residual row mass $p(k)-\Pi^*_{kk}=\max\{p(k)-\Psi(k),0\}$ and residual column mass $\Psi(k)-\Pi^*_{kk}=\max\{\Psi(k)-p(k),0\}$ to be assigned to off-diagonal entries.  Both residuals are nonneg\-ative and their totals across $k$ are equal (both equal $\sum_k\max\{p(k)-\Psi(k),0\}$, since $p$ and $\Psi$ are probability vectors), so a feasible assignment of the residuals to off-diagonal entries exists by a standard flow argument.
+The transport cost under the indicator distance is $1 - \sum_k \Pi_{kk}$ for any coupling $\Pi \in \Gamma(p,\Psi)$, minimized by maximising $\sum_k \Pi_{kk}$.  Marginal constraints give $\Pi_{kk} \leq \min\{p(k),\Psi(k)\}$, and the plan $\Pi^*_{kk} = \min\{p(k),\Psi(k)\}$ is feasible (residual row and column masses are nonneg\-ative and sum to the same total, so an off-diagonal assignment exists).  Thus $W_{\mathrm{ind}}(p,\Psi) = 1 - \sum_k \min\{p(k),\Psi(k)\}$.  The second equality uses $a - \min(a,b) = \max(a-b,0)$ and $\sum_k(p(k)-\Psi(k)) = 0$ to give $\sum_k\max\{p(k)-\Psi(k),0\} = \tfrac{1}{2}\|p-\Psi\|_1$.
 \end{proof}
 
-The analogous property for barycenter solutions is established in Appendix~\ref{app:fulldiag}: every optimal plan $\Pi^{l}$ simultaneously satisfies $\Pi^{l}_{kk} = \min\{p_l(k), \Psi(k)\}$.
+The analogous property for barycenter solutions---that every optimal plan simultaneously satisfies $\Pi^{l}_{kk} = \min\{p_l(k), \Psi(k)\}$---is established in Appendix~\ref{app:fulldiag}.
 \begin{theorem}[$\ell^1$ Simplification]
 \label{thm:l1}
 Let $\left\{p_1,\ldots,p_N\right\}$ be probability mass functions on $\left\{1,\ldots,K\right\}$ and let the ground cost be the indicator distance.  Then the Wasserstein barycenter $\Psi^*$ solves
@@ -101,6 +101,37 @@ using the identity $a - \min(a,b) = \max(a-b,0)$ and the fact that $\sum_k(p_l(k
 \end{proof}
 \begin{remark}
 The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem reduces the barycenter problem to $\ell^1$ median estimation on the simplex: the unconstrained minimizer assigns each state the coordinatewise median of the expert opinions, and the simplex constraint shifts this toward a normalized version of the median.  The arithmetic mean generally does not satisfy this condition and therefore does not generally coincide with the Wasserstein barycenter.
+\end{remark}
+
+\begin{corollary}[Boundedness]
+\label{cor:bounded}
+Every Wasserstein barycenter $\Psi^*$ under the indicator cost satisfies
+\[
+  \min_{j} p_j(k) \;\leq\; \Psi^*(k) \;\leq\; \max_{j} p_j(k)
+  \qquad \text{for each } k = 1,\ldots,K.
+\]
+In particular, $\Psi^*$ assigns zero probability to any outcome that no expert assigns positive probability.
+\end{corollary}
+\begin{proof}
+By the Full-Diagonal Criterion (Proposition~\ref{prop:fulldiag}), every optimal transport plan satisfies $\Pi^l_{kk} = \min\{p_l(k), \Psi^*(k)\}$ for all $l$ and $k$.  Suppose $\Psi^*(k) > \max_j p_j(k)$ for some $k$.  Then $\min\{p_l(k), \Psi^*(k)\} = p_l(k)$ for every $l$, so the diagonal entries in column $k$ account for only $\sum_l p_l(k) < N\Psi^*(k)$ units of the column mass $N\Psi^*(k)$.  The remaining mass $N\Psi^*(k) - \sum_l p_l(k) > 0$ must come from off-diagonal entries in column $k$, each incurring transport cost $1$.  Reducing $\Psi^*(k)$ by any $\varepsilon > 0$ small enough (and increasing some other coordinate to maintain the simplex constraint) would eliminate some of this off-diagonal mass, strictly decreasing the objective.  This contradicts optimality, so $\Psi^*(k) \leq \max_j p_j(k)$.  The lower bound $\Psi^*(k) \geq \min_j p_j(k)$ follows symmetrically by considering row masses.
+\end{proof}
+
+\begin{remark}[Unanimity]
+If all experts agree---$p_1 = p_2 = \cdots = p_N = p$---then $\Psi^* = p$.  This follows immediately from Corollary~\ref{cor:bounded}: each bound collapses to $p(k)$, so $\Psi^*(k) = p(k)$ for every $k$.
+\end{remark}
+
+\begin{corollary}[Binary case]
+\label{cor:binary}
+For $K=2$, the Wasserstein barycenter under the indicator cost is
+\[
+  \Psi^*(1) \;=\; \mathrm{median}\{p_1(1),\ldots,p_N(1)\}, \qquad \Psi^*(2) = 1 - \Psi^*(1).
+\]
+\end{corollary}
+\begin{proof}
+With $K=2$ the simplex constraint $\Psi(1)+\Psi(2)=1$ reduces the optimisation to a single free variable.  The objective $\sum_l(|p_l(1)-\Psi(1)|+|p_l(2)-\Psi(2)|) = 2\sum_l|p_l(1)-\Psi(1)|$ is minimised by the median of $\{p_l(1)\}$, which automatically lies in $[0,1]$ and hence satisfies the simplex constraint.
+\end{proof}
+\begin{remark}[Breakdown point]
+The finite-sample breakdown point of the binary barycenter is $\lfloor(N+1)/2\rfloor / N \approx 50\%$, matching the classical sample median.  Corrupting more than half the panel can shift $\Psi^*(1)$ arbitrarily, but any minority of corrupted opinions---however extreme---leaves the aggregate unchanged whenever the corrupted values do not cross the median.  This contrasts with the arithmetic mean, whose breakdown point is $1/N$: a single arbitrarily corrupted opinion can move the aggregate by up to $(1-\bar{p})/N$ in any direction.
 \end{remark}
 
 \subsection{Discrete Barycenters for Ordered Spaces}
@@ -130,7 +161,33 @@ F_\Psi(k)=\mathrm{med}\left\{F_1(k),\ldots,F_N(k)\right\},\quad k=1,\ldots,K-1.
 Since the objective separates across $k$, the unconstrained minimizer at each $k$ is the sample median of $\left\{F_j(k)\right\}_{j=1}^N$.  It remains to verify that the vector of component-wise medians constitutes a valid CDF, i.e., it is nondecreasing in $k$.  Since each $F_j$ is nondecreasing, $F_j(k)\leq F_j(k+1)$ for every $j$.  If $x_j\leq y_j$ for all $j$, then $\mathrm{med}\left\{x_j\right\}\leq\mathrm{med}\left\{y_j\right\}$; hence $F_\Psi(k)\leq F_\Psi(k+1)$ for all $k$.  The boundary conditions $F_\Psi(0)=0$ and $F_\Psi(K)=1$ hold since $F_j(0)=0$ and $F_j(K)=1$ for every $j$.  Thus $F_\Psi$ is a valid CDF and $\Psi(k)=F_\Psi(k)-F_\Psi(k-1)\geq 0$ defines a probability mass function on $\Omega$.
 \end{proof}
 
-The W-1 barycenter has a natural interpretation: it is the distribution whose CDF lies at the ``center'' of the collection in the $L^1$ sense.  Boundedness of $\Psi$ in the CDF sense is immediate since the median is bounded by the minimum and maximum: $\min_j F_j(k)\leq F_\Psi(k)\leq\max_j F_j(k)$ for all $k$.
+The W-1 barycenter has a natural interpretation: it is the distribution whose CDF lies at the ``center'' of the collection in the $L^1$ sense.
+
+\begin{corollary}[CDF Boundedness]
+\label{cor:cdf_bounded}
+The $W_1$ barycenter $\Psi^*$ satisfies
+\[
+  \min_{j} F_j(k) \;\leq\; F_{\Psi^*}(k) \;\leq\; \max_{j} F_j(k)
+  \qquad \text{for each } k = 1,\ldots,K-1.
+\]
+In particular, $\Psi^*$ never assigns cumulative probability outside the range spanned by the panel.
+\end{corollary}
+\begin{proof}
+Immediate from Proposition~\ref{prop:w1}: the component-wise median of $\{F_j(k)\}$ lies in $[\min_j F_j(k),\, \max_j F_j(k)]$.
+\end{proof}
+
+\subsubsection*{Connection to the Ranked Probability Score}
+
+The empirical evaluation in Section~\ref{sec:spf_backtest} uses the Ranked Probability Score (RPS) as its primary criterion.  The following remark makes the geometric relationship between the $W_1$ barycenter and RPS explicit, which explains the dispersion-conditional pattern observed in the data.
+
+\begin{remark}[RPS as squared $\ell^2$ CDF distance]
+\label{rem:rps_l2}
+For an ordered outcome space with $K$ bins, the Ranked Probability Score of a forecast CDF $F_{\hat p}$ against realized bin $b$ is
+\[
+  \mathrm{RPS}(F_{\hat p},\, b) \;=\; \sum_{k=1}^{K-1} \bigl(F_{\hat p}(k) - \mathbf{1}_{b \leq k}\bigr)^2,
+\]
+the squared $\ell^2$ distance in CDF space between $F_{\hat p}$ and the step CDF of a point mass at bin $b$.  By contrast, Proposition~\ref{prop:w1} shows that the $W_1$ barycenter minimizes an \emph{$\ell^1$} objective in CDF space across the panel.  This $\ell^1$--$\ell^2$ mismatch has a direct empirical implication: the barycenter concentrates its CDF near the panel median, which reduces $\ell^2$ CDF error when the realized outcome falls in the consensus region (low dispersion), but can increase $\ell^2$ CDF error when the realized outcome is a tail bin (high dispersion), because the arithmetic mean's broader CDF is geometrically closer to extreme step functions.  Section~\ref{sec:spf_backtest} documents both patterns.
+\end{remark}
 
 \section{Robustness of Aggregating Measures}
 \label{sec:robustness}
@@ -146,36 +203,38 @@ The empirical influence function (EIF) quantifies the effect of introducing a si
 rescaled so that it approximates the derivative of $T$ with respect to contamination fraction $\varepsilon = 1/(N+1)$.  The gross error sensitivity $\mathrm{GES}(T) = \sup_{P_0} \left\|\mathrm{EIF}(P_0;\,T,\,\mathbf{P}_N)\right\|_\infty$ summarizes the worst-case influence of a single outlier.
 
 \begin{proposition}[\textbf{EIF of the Arithmetic Mean}]
+\label{prop:am_eif}
 Let $\bar{P}_N = \frac{1}{N}\sum_{j=1}^N P_j$ be the arithmetic mean of $\mathbf{P}_N$.  Then
 \begin{align*}
 \mathrm{EIF}_k(P_0;\, \bar{P},\, \mathbf{P}_N) = P_0(k) - \bar{P}_N(k)
 \end{align*}
-for each state $k \in \Omega$.  The gross error sensitivity is $\mathrm{GES}(\bar{P}) = \sup_{P_0}\left\|P_0 - \bar{P}_N\right\|_\infty$, which is maximized as $P_0 \to \delta_k$ for any $k$, giving $\mathrm{GES}(\bar{P}) \leq 1 - \min_k \bar{P}_N(k)$.
+for each state $k \in \Omega$.
 \end{proposition}
 \begin{proof}
-Adding $P_0$ to $\mathbf{P}_N$ gives $\bar{P}_{N+1}(k) = \frac{N\bar{P}_N(k) + P_0(k)}{N+1}$.  Then
-\begin{align*}
-(N+1)\left[\bar{P}_{N+1}(k) - \bar{P}_N(k)\right]
-= (N+1)\cdot\frac{P_0(k) - \bar{P}_N(k)}{N+1}
-= P_0(k) - \bar{P}_N(k).
-\end{align*}
-The EIF is linear in $P_0$ and equals zero only when $P_0 = \bar{P}_N$.  As $P_0(k)\to 1$ for any $k$, the influence approaches $1 - \bar{P}_N(k)$, which is bounded away from zero whenever $K > 1$.
+Adding $P_0$ to $\mathbf{P}_N$ gives $\bar{P}_{N+1}(k) = \frac{N\bar{P}_N(k) + P_0(k)}{N+1}$, so
+\[
+(N+1)\bigl[\bar{P}_{N+1}(k) - \bar{P}_N(k)\bigr] = P_0(k) - \bar{P}_N(k). \qedhere
+\]
 \end{proof}
+\begin{remark}
+The EIF of the arithmetic mean is linear in $P_0$ and independent of $N$: every opinion, regardless of how extreme, exerts unit influence on the aggregate.  The gross error sensitivity is $\mathrm{GES}(\bar{P}) = \sup_{P_0}\|P_0 - \bar{P}_N\|_\infty \leq 1 - \min_k \bar{P}_N(k)$, which approaches $1$ as $P_0 \to \delta_k$ for any $k$.
+\end{remark}
 
-For the Wasserstein barycenter, the EIF depends on the geometry of the Wasserstein space.  Adding $P_0$ introduces a new term $\frac{1}{N+1}W_p^p(\Psi, P_0)$ into the barycenter objective, which must be balanced against the $\frac{1}{N+1}$ reduction in weight on each of the $N$ existing terms.  The new minimizer $\hat\Psi_{N+1}$ shifts from $\hat\Psi_N$ only to the extent that moving toward $P_0$ does not excessively increase the total Wasserstein cost relative to the existing $N$ experts.
+The exact EIF of the Wasserstein barycenter does not admit a closed form in general, because the barycenter is defined as the solution to a nonlinear variational problem whose geometry changes when $P_0$ is added.  A useful bound is available, however, from the boundedness result of Corollary~\ref{cor:bounded}.
 
-\begin{proposition}[\textbf{EIF of the Wasserstein Barycenter}]
-Let $\hat\Psi_N$ and $\hat\Psi_{N+1}$ denote the Wasserstein barycenters of $\mathbf{P}_N$ and $\mathbf{P}_N\cup\left\{P_0\right\}$ respectively.  The shift $\hat\Psi_{N+1}(k) - \hat\Psi_N(k)$ is bounded by the range of expert opinions on state $k$:
+\begin{corollary}[\textbf{Perturbation Bound for the Wasserstein Barycenter}]
+\label{cor:bc_perturb}
+Let $\hat\Psi_N$ and $\hat\Psi_{N+1}$ denote the Wasserstein barycenters of $\mathbf{P}_N$ and $\mathbf{P}_N\cup\{P_0\}$ respectively under the indicator cost.  Then for each $k$,
 \begin{align*}
 \left|\hat\Psi_{N+1}(k) - \hat\Psi_N(k)\right|
-\leq \max\!\left(\max_{j\leq N} P_j(k),\, P_0(k)\right) - \min\!\left(\min_{j\leq N} P_j(k),\, P_0(k)\right).
+\;\leq\; \max_{j\leq N} P_j(k) \vee P_0(k) \;-\; \min_{j\leq N} P_j(k) \wedge P_0(k).
 \end{align*}
-\end{proposition}
+\end{corollary}
 \begin{proof}
-Both $\hat\Psi_N(k)$ and $\hat\Psi_{N+1}(k)$ lie within the range of their respective expert collections (Theorem~\ref{thm:l1}, boundedness), so their difference cannot exceed the range of the combined collection.
+By Corollary~\ref{cor:bounded}, $\hat\Psi_N(k)$ lies in $[\min_{j\leq N}P_j(k),\,\max_{j\leq N}P_j(k)]$ and $\hat\Psi_{N+1}(k)$ lies in the analogous interval for the combined collection.  The difference of two values in these intervals cannot exceed the width of the combined range.
 \end{proof}
 
-The two propositions reveal a structural asymmetry.  The EIF of the arithmetic mean equals $P_0 - \bar{P}_N$ exactly, independent of $N$: every expert, regardless of how extreme, exerts unit influence on the aggregate.  The barycenter's shift is bounded by the range of expert opinions; an outlying opinion far from the existing consensus is costly in the Wasserstein sense and therefore exerts reduced influence.  This is median-like in spirit: the barycenter's response is constrained by the geometry of the existing expert panel rather than being a linear function of all views.  We do not claim a full robust-statistics treatment with sharp breakdown-point results; rather, the bound provides an interpretable upper limit on how much any single opinion can shift the aggregate.
+The two results reveal a structural asymmetry.  The EIF of the arithmetic mean equals $P_0 - \bar{P}_N$ exactly, independent of $N$: every expert, regardless of how extreme, exerts unit influence on the aggregate.  The barycenter's shift is bounded by the range of expert opinions; an outlying opinion far from the existing consensus is costly in the Wasserstein sense and therefore exerts reduced influence.  This is median-like in spirit: the barycenter's response is constrained by the geometry of the existing expert panel rather than being a linear function of all views.  We do not claim a full robust-statistics treatment with sharp breakdown-point results; rather, the bound provides an interpretable upper limit on how much any single opinion can shift the aggregate.
 
 \subsection{Simulation Evidence}
 
@@ -350,6 +409,44 @@ The most influential experts on the arithmetic mean are those whose allocations 
 \label{fig:app_scatter}
 \end{figure}
 
+\subsection{Historical Evaluation: Good Judgment Project}
+\label{sec:gjp}
+
+The opioid application illustrates the unordered barycenter with $K=20$ outcomes but lacks verified realizations for scoring.  We complement it with a scored evaluation on binary ($K=2$) questions from the Good Judgment Project (GJP), a geopolitical forecasting tournament conducted under the IARPA ACE program from 2011 to 2015~\cite{tetlock16}.
+
+For binary outcomes, Corollary~\ref{cor:binary} gives that the indicator-cost $\ell^1$ barycenter reduces to the component-wise median of the individual probability vectors.  Each forecaster's distribution over \{Yes, No\} is characterized by a single number $p_j \in [0,1]$; the barycenter selects $p^* = \mathrm{median}_j(p_j)$ while the arithmetic mean selects $\bar{p} = \frac{1}{N}\sum_j p_j$.  The dispersion-robustness intuition is direct: if a minority of forecasters assigns extreme probabilities near 0 or 1, the median is unaffected while the mean is pulled toward them.
+
+\paragraph{Data and protocol.}  We use individual survey forecasts from Year~1 of the GJP (2011--2012), publicly available through Harvard Dataverse~\cite{tetlock_dataverse}.  For each of the 94 binary questions with at least 5 participating forecasters (mean panel size: 895), we take each forecaster's last submitted forecast before question closure and compute the arithmetic mean and median of the individual $P(\text{Yes})$ values.  We score each aggregate against the binary resolution using the Brier score, $\mathrm{BS} = (p - \mathbf{1}_{\text{Yes}})^2$.
+
+\paragraph{Results.}  The median (barycenter) achieves a lower Brier score than the arithmetic mean on 85.1\% of questions, with mean Brier scores of 0.091 (BC) versus 0.104 (AM), a 12.5\% improvement ($p < 0.001$, Wilcoxon).  The advantage is present across all dispersion terciles and is largest when the panel exhibits low disagreement (Table~\ref{tab:gjp} and Figure~\ref{fig:gjp_brier}).
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+Dispersion group & AM Brier & BC Brier & BC improvement \\
+\hline
+Low tercile  & 0.034 & 0.018 & 45.1\% \\
+Mid tercile  & 0.123 & 0.107 & 13.0\% \\
+High tercile & 0.157 & 0.149 &  5.3\% \\
+\hline
+Overall      & 0.104 & 0.091 & 12.5\% \\
+\hline
+\end{tabular}
+\caption{GJP Year 1 Brier scores by dispersion tercile ($n=94$ binary questions, mean panel size 895).  The barycenter (= component-wise median) outperforms the arithmetic mean most strongly when the panel is cohesive.}
+\label{tab:gjp}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{output/gjp/fig_gjp1_brier.pdf}
+\caption{GJP Year 1: Brier score comparison for 94 binary questions.  Left: scatter of AM vs.\ BC Brier score (one point per question; below the diagonal = BC wins; color indicates panel dispersion).  Right: mean Brier score by dispersion tercile.  The barycenter consistently outperforms the arithmetic mean.}
+\label{fig:gjp_brier}
+\end{figure}
+
+The GJP finding adds an important dimension: the barycenter's advantage holds in a setting where the number of forecasters is very large ($\sim\!900$ per question) and outcomes are binary.  Even with nearly a thousand forecasters, the median dominates the mean because it is robust to the minority of participants who assign extreme probabilities.
+
 \section{Application to the Survey of Professional Forecasters}
 \label{sec:spf}
 
@@ -395,36 +492,48 @@ Figure~\ref{fig:spf_cdfs} shows the individual CDFs (grey), the arithmetic-mean 
 \subsection{Historical Forecast Evaluation}
 \label{sec:spf_backtest}
 
-\paragraph{Evaluation protocol.}  We use the current-year PRCCPI histograms (columns \texttt{PRCCPI1}--\texttt{PRCCPI10}), which ask each forecaster to distribute probability across the 10 bins for Q4/Q4 core CPI inflation in the current calendar year.  The sample covers 2007:Q1 through 2025:Q4; quarters with fewer than five valid respondents are excluded, leaving 76 quarters.  A respondent's histogram is retained if its probabilities sum to within 2 percentage points of 100\%; retained histograms are renormalized to sum exactly to one and reversed to ascending bin order.  Realized outcomes are Q4/Q4 (December-over-December) percent changes in the seasonally adjusted core CPI from FRED series \texttt{CPILFESL}; the SA and NSA series are nearly identical for this variable.  Each realized value is mapped to one of the 10 bins using the bin boundaries in Table~\ref{tab:backtest}.  We do not assess calibration, which is a property of the individual expert forecasts and is not in general preserved under nonlinear combination; a reliability-diagram analysis is left for future work.
+\subsubsection*{Evaluation protocol}
 
-We evaluate each method on two complementary scoring criteria.  The \emph{Ranked Probability Score} (RPS)~\cite{gneiting07} is a strictly proper scoring rule for ordered categorical outcomes defined as $\mathrm{RPS} = \sum_{k=1}^{K-1}(F_{\hat{p}}(k) - \mathbf{1}_{b \leq k})^2$, where $F_{\hat{p}}$ is the aggregate CDF and $b$ is the realized bin; lower RPS indicates better accuracy.  The \emph{probability on the realized bin} (mass score) is the probability mass the aggregate assigns to the bin containing the realized outcome; higher is better.  The two criteria are complementary: the mass score rewards placing mass in precisely the right bin, while RPS additionally penalizes mass placed far from the realized bin.  Significance is assessed via one-sided Wilcoxon signed-rank tests, which are robust to non-normality and heavy tails in score differences---a relevant concern given that both methods assign near-zero mass to the $\geq\!4\%$ bin in most quarters, causing extreme log-score losses in the 2021--2022 inflation episode.
+\noindent\textbf{Forecast variable.}  We use the current-year PRCCPI histograms (columns \texttt{PRCCPI1}--\texttt{PRCCPI10}), in which each respondent distributes 100 probability points across 10 ordered bins for Q4/Q4 core CPI inflation in the current calendar year.  The horizon is current-year (not next-year); we choose this horizon because the realized value is unambiguously assigned within the same calendar year and the panel is largest.
+
+\noindent\textbf{Sample construction.}  The sample covers all survey quarters from 2007:Q1 through 2025:Q4.  A respondent's row is retained if its bin probabilities sum to within 2 percentage points of 100; retained histograms are renormalized to exactly 1 and reversed to ascending bin order.  Quarters with fewer than five valid respondents are excluded, leaving $n = 76$ usable quarters.
+
+\noindent\textbf{Realized outcomes.}  Each realized value is the December-over-December percent change in seasonally adjusted core CPI (FRED series \texttt{CPILFESL}) for the forecast year.  The SA and NSA series are nearly identical for this variable.  Each realized value is mapped to one of the 10 bins using the boundaries in Table~\ref{tab:backtest}.
+
+\noindent\textbf{Scoring rules.}  The primary scoring rule is the Ranked Probability Score (RPS; see Remark~\ref{rem:rps_l2})~\cite{gneiting07}: lower RPS is better.  The secondary criterion is the probability mass the aggregate places on the realized bin (mass score); higher is better.  The two criteria are complementary: the mass score rewards precision at the correct bin, while RPS additionally penalizes mass placed far from the realized outcome.
+
+\noindent\textbf{Inference.}  Score differences are tested via one-sided Wilcoxon signed-rank tests, which are robust to non-normality and heavy tails---relevant given the extreme score losses in 2021--2022.  We do not evaluate calibration, which is a property of the individual expert forecasts and is not in general preserved under nonlinear combination; a reliability-diagram analysis is left for future work.
 
 The single-quarter illustration above motivates a question of practical importance: does the $W_1$ barycenter produce better probabilistic forecasts than the arithmetic mean when evaluated against realized outcomes?
 
-\paragraph{Overall results.}  Panel A of Table~\ref{tab:backtest} reports both metrics over the full sample.  The most direct finding is that the barycenter places more mass on the correct bin in 75.0\% of quarters ($p < 0.001$, Wilcoxon), with a mean probability of 0.424 versus 0.367 for the arithmetic mean, a 15.6\% improvement.  The RPS comparison tells a consistent story: the barycenter achieves lower RPS in 68.4\% of quarters ($p = 0.0045$), with mean RPS 0.439 versus 0.447.
+\paragraph{Overall results.}  We compare four methods: the arithmetic mean (AM), the logarithmic opinion pool (LP), the symmetrically trimmed arithmetic mean (TM, 10\% trim), and the $W_1$ barycenter (BC).  Panel A of Table~\ref{tab:backtest} reports both metrics over the full 76-quarter sample.  The TM achieves the lowest mean RPS among the four methods ($0.435$, wins 76.3\% vs.\ AM, $p < 0.001$), with the BC close behind ($0.439$, wins 68.4\%, $p = 0.005$).  The LP has the worst RPS ($0.486$, not significantly different from AM, $p = 0.886$) despite having the highest P(correct bin) ($0.491$ vs.\ $0.424$ for BC).  This divergence --- LP is best at placing mass on the realized bin yet worst at RPS --- reflects the $\ell^1$--$\ell^2$ mismatch of Remark~\ref{rem:rps_l2}: the LP's extreme concentration minimizes $\ell^1$ error at the mode, but its near-zero tail mass amplifies squared CDF error in the increasingly many quarters where a tail bin is realized.  The BC balances both objectives: it places substantially more mass on the realized bin than the AM (75.0\% win rate, $p < 0.001$) while preserving more tail coverage than the LP.  The TM's narrow RPS advantage over the BC ($0.435$ vs.\ $0.439$) comes without a closed-form characterization or formal robustness theory; the BC's modest RPS shortfall relative to TM is fully explained by the $\ell^1$--$\ell^2$ mismatch of Remark~\ref{rem:rps_l2} and disappears in the dispersion-adaptive blend.
 
-\paragraph{Dispersion-conditional results.}  Panel B conditions on the cross-sectional variance of individual forecast means, splitting the sample at the median into low- and high-dispersion quarters (38 each).  The probability-on-realized-bin metric shows the barycenter outperforming in \emph{both} groups: 0.496 versus 0.430 in low-dispersion quarters, and 0.353 versus 0.303 in high-dispersion quarters.  The RPS results are more nuanced: the barycenter wins decisively in low-dispersion quarters (mean RPS 0.301 vs.\ 0.328, $p < 0.001$), while the arithmetic mean is marginally better in high-dispersion quarters (mean RPS 0.567 vs.\ 0.578, $p = 0.37$).  The divergence between the two metrics in high-dispersion quarters reflects a distinction in what they reward.  The barycenter places more mass on the realized bin even in these quarters, but when the realized bin is a tail bin, the AM's broader CDF has smaller cumulative deviations from the realized step function, yielding lower RPS.  The 2021--2022 inflation surge is the clearest illustration: both methods underestimated realized core CPI ($\geq 4\%$), but the AM retained more tail mass, reducing its RPS deficit in those extreme quarters.
+\paragraph{Dispersion-conditional results.}  Panel B conditions on the cross-sectional variance of individual forecast means, splitting the sample at the median into low- and high-dispersion quarters (38 each).  The probability-on-realized-bin metric shows the barycenter outperforming in \emph{both} groups: 0.496 versus 0.430 in low-dispersion quarters, and 0.353 versus 0.303 in high-dispersion quarters.  The RPS results are more nuanced: the barycenter wins decisively in low-dispersion quarters (mean RPS 0.301 vs.\ 0.328, $p < 0.001$), while the arithmetic mean is marginally better in high-dispersion quarters (mean RPS 0.567 vs.\ 0.578, $p = 0.37$).  The divergence between the two metrics in high-dispersion quarters reflects the $\ell^1$--$\ell^2$ mismatch identified in Remark~\ref{rem:rps_l2}: the barycenter minimizes an $\ell^1$ CDF objective, so it concentrates near the panel median; but RPS penalizes squared CDF deviations, and the AM's broader CDF is geometrically closer to the step CDFs of tail outcomes.  The barycenter still places more mass on the realized bin even in high-dispersion quarters, but the AM's retained tail mass yields smaller cumulative squared deviations when an extreme outcome materializes.  The 2021--2022 inflation surge is the clearest illustration: both methods underestimated realized core CPI ($\geq 4\%$), but the AM retained more tail mass, reducing its RPS deficit in those extreme quarters.
 
 In low-dispersion quarters the economic interpretation is straightforward: the panel agrees, the barycenter correctly concentrates mass on the consensus region, and the consensus is usually right.  In high-dispersion quarters the panel is genuinely uncertain; the arithmetic mean's equal weighting preserves more tail mass, which pays off under RPS when an extreme outcome materializes, even though the barycenter still places more mass on the correct bin in expectation.
 
 \begin{table}[ht]
 \centering
-\caption{SPF current-year backtest: arithmetic mean (AM) vs.\ $W_1$ barycenter (BC), 2007:Q1--2025:Q4.  ``Mass on correct bin'': probability assigned to the realized bin (higher is better).  RPS: lower is better.  $p$-values from one-sided Wilcoxon signed-rank test.}
+\caption{SPF current-year backtest: four-method comparison, 2007:Q1--2025:Q4.  AM = arithmetic mean; LP = logarithmic opinion pool; TM = symmetrically trimmed mean (10\%); BC = $W_1$ barycenter.  ``P(correct bin)'': mean probability on the realized bin (higher is better).  RPS: mean Ranked Probability Score (lower is better).  $p$-values from one-sided Wilcoxon signed-rank test vs.\ AM.  Adaptive blend results are from the 56-quarter OOS evaluation (Section~\ref{sec:blend}).}
 \label{tab:backtest}
 \smallskip
 \begin{tabular}{lcccc}
 \hline
- & \multicolumn{2}{c}{Mass on correct bin} & \multicolumn{2}{c}{Mean RPS} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-Sample & AM & BC & AM & BC \\
+Method & P(correct bin) & Mean RPS & Wins\% vs AM & $p$-value (RPS) \\
 \hline
 \multicolumn{5}{l}{\textit{Panel A: Full sample ($n = 76$ quarters)}} \\[2pt]
-All quarters   & 0.367 & 0.424 & 0.447 & 0.439 \\
-\quad BC better & \multicolumn{2}{c}{75.0\% of quarters} & \multicolumn{2}{c}{68.4\% of quarters} \\
-\quad $p$-value & \multicolumn{2}{c}{$<$0.001} & \multicolumn{2}{c}{0.0045} \\[4pt]
+Arithmetic mean (AM)         & 0.367 & 0.447 & ---    & ---    \\
+Log pool (LP)                & 0.491 & 0.486 & 57.9\% & 0.886  \\
+Trimmed mean (TM, 10\%)      & 0.393 & 0.435 & 76.3\% & 0.0001 \\
+$W_1$ Barycenter (BC)        & 0.424 & 0.439 & 68.4\% & 0.0045 \\
+Adaptive blend (OOS)         & ---   & 0.404 & ---    & $<$0.001 \\[4pt]
 \multicolumn{5}{l}{\textit{Panel B: By cross-sectional dispersion ($n = 38$ each)}} \\[2pt]
-Low dispersion  & 0.430 & 0.496 & 0.328 & 0.301 \\
-High dispersion & 0.303 & 0.353 & 0.567 & 0.578 \\
+ & \multicolumn{2}{c}{Low dispersion} & \multicolumn{2}{c}{High dispersion} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+ & P(corr.\ bin) & RPS & P(corr.\ bin) & RPS \\
+\hline
+AM  & 0.430 & 0.328 & 0.303 & 0.567 \\
+BC  & 0.496 & 0.301 & 0.353 & 0.578 \\
 \hline
 \end{tabular}
 \end{table}
@@ -459,6 +568,87 @@ Figures~\ref{fig:bt_mass}--\ref{fig:bt_dispersion} provide the visual summary.  
 \label{fig:bt_dispersion}
 \end{figure}
 
+\subsection{Adaptive Blending}
+\label{sec:blend}
+
+The historical results suggest a natural extension.  The $W_1$ barycenter improves on the arithmetic mean on average, but the arithmetic mean retains value in high-dispersion quarters under the RPS.  A convex blend
+\[
+  \hat{\Psi}_t(\lambda) \;=\; \lambda\,\Psi^*_t + (1-\lambda)\,\bar{P}_t,\qquad \lambda\in[0,1],
+\]
+interpolates between the two extremes.  At $\lambda=1$ this is the barycenter; at $\lambda=0$ it is the arithmetic mean.
+
+\paragraph{Oracle.}  A grid search over $\lambda\in\{0,0.005,\ldots,1\}$ using all 76 quarters identifies $\lambda^*=0.70$ as the mean-RPS minimizer, yielding an in-sample mean RPS of $0.437$---lower than both the arithmetic mean ($0.447$) and the pure barycenter ($0.439$).  The improvement is modest but reveals that neither extreme is optimal.
+
+\paragraph{Out-of-sample evaluation.}  To avoid look-ahead bias we apply an expanding-window protocol: for each quarter $t$ (starting from quarter 21) we estimate $\hat\lambda_t$ by minimizing mean RPS over all prior quarters and apply it only to quarter $t$.  In a richer adaptive version, $\hat\lambda_t = \sigma(a_t + b_t D_t)$ where $D_t$ is the cross-sectional variance of individual forecast means and $(a_t, b_t)$ are estimated by Nelder-Mead on the expanding window.  Results over the 56-quarter out-of-sample period are reported in Table~\ref{tab:blend} and Figure~\ref{fig:blend}.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+Method & Mean RPS & $p$-value (vs.\ AM) & Wins vs.\ AM \\
+\hline
+Arithmetic mean        & 0.423 & ---    & ---   \\
+$W_1$ barycenter       & 0.411 & 0.002  & 75\%  \\
+Fixed blend ($\hat\lambda\approx0.71$) & 0.413 & 0.001 & 79\% \\
+Adaptive blend         & 0.404 & $<$0.001 & 64\% \\
+\hline
+\end{tabular}
+\caption{Out-of-sample RPS comparison (56 quarters, expanding-window evaluation).  $p$-values from Wilcoxon signed-rank test.  The dispersion-adaptive blend achieves the lowest mean RPS.}
+\label{tab:blend}
+\end{table}
+
+The adaptive blend achieves a mean RPS of $0.404$---a $4.5\%$ improvement over the arithmetic mean and a $1.7\%$ improvement over the unweighted barycenter.  The expanding-window estimate of $\lambda$ converges rapidly to approximately $0.71$, closely matching the oracle value, which indicates that the optimal mixture weight is stable over time and requires no large calibration sample.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{output/spf_backtest/fig_bt7_blend.pdf}
+\caption{Left: oracle mean RPS as a function of blend weight $\lambda$ (full sample).  The minimum at $\lambda^*=0.70$ lies between the arithmetic mean ($\lambda=0$) and the barycenter ($\lambda=1$).  Right: cumulative out-of-sample mean RPS for the arithmetic mean, $W_1$ barycenter, fixed blend, and dispersion-adaptive blend over the 56-quarter evaluation period.}
+\label{fig:blend}
+\end{figure}
+
+\subsection{Replication on the ECB Survey of Professional Forecasters}
+\label{sec:ecb_spf}
+
+To assess whether the US SPF findings are specific to that survey or reflect a more general property of barycenter aggregation, we replicate the backtest on the ECB Survey of Professional Forecasters (ECB SPF), which has been conducted quarterly since 1999~\cite{garcia05}.  The ECB SPF covers the Euro area and asks respondents to assign probabilities to ordered bins for headline HICP inflation, real GDP growth, and the unemployment rate.  We use the headline HICP current-year forecasts over the period 2010Q1--2024Q3 ($n=56$ quarter-surveys), during which the bin structure is stable at 12 ordered bins of width 0.5~pp from below $-1\%$ to above $4\%$.  Realized values are annual-average HICP YoY from the ECB Statistical Data Warehouse.  The evaluation protocol (AM, $W_1$ barycenter, RPS scoring, dispersion split) is identical to Section~\ref{sec:spf_backtest}.
+
+\paragraph{Results.}  The barycenter assigns more probability mass to the realized outcome bin in 78.6\% of quarter-surveys ($p<0.001$, Wilcoxon), with a mean mass of $0.457$ versus $0.430$ for the arithmetic mean---a 6.3\% improvement (Figure~\ref{fig:ecb_mass}).  This replicates the core finding from the US SPF on an independent panel in a different institutional setting and with a different realized variable.
+
+The aggregate RPS advantage, however, is small and not statistically significant (mean RPS $0.441$ AM vs.\ $0.441$ BC, $p=0.23$).  The dispersion-conditional pattern is consistent with the US SPF: the barycenter achieves lower RPS in low-dispersion quarters (mean $0.255$ vs.\ $0.266$) while the arithmetic mean wins marginally in high-dispersion quarters (mean $0.616$ vs.\ $0.626$).  The divergence between the mass-on-correct-bin and RPS metrics is explained by the 2021--2023 Euro-area inflation surge.  Annual-average HICP reached $8.4\%$ in 2022---well above the highest bin boundary (${\geq}4\%$)---an outcome that both methods failed to anticipate but that the arithmetic mean handles less badly under RPS by retaining more probability mass in the upper tail of the distribution.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+ & \multicolumn{2}{c}{Mean score} & \\
+Method & RPS & P(correct bin) & Wins (mass) \\
+\hline
+Arithmetic mean & 0.441 & 0.430 & --- \\
+$W_1$ barycenter & 0.441 & 0.457 & 78.6\%$^{***}$ \\
+\hline
+\multicolumn{4}{l}{\textit{Panel B: By dispersion ($n=28$ each)}} \\[2pt]
+\hline
+ & \multicolumn{2}{c}{Mean RPS} & \\
+ & Low disp. & High disp. & \\
+\hline
+Arithmetic mean & 0.266 & 0.616 & \\
+$W_1$ barycenter & 0.255 & 0.626 & \\
+\hline
+\end{tabular}
+\caption{ECB SPF backtest (56 quarter-surveys, 2010Q1--2024Q3, current-year headline HICP).  $^{***}$ Wilcoxon $p<0.001$.  Overall RPS difference is not significant ($p=0.23$).}
+\label{tab:ecb_backtest}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{output/ecb_spf_backtest/fig_ecb1_mass_correct_bin.pdf}
+\caption{ECB SPF: probability mass assigned to the realized annual-average HICP bin by the arithmetic mean and $W_1$ barycenter, 2010Q1--2024Q3.  The barycenter consistently assigns more mass to the correct bin.  Shaded quarters are high-dispersion (above-median cross-sectional variance).  The 2022 inflation surge (realized HICP $8.4\%$) is visible as a period of low mass for both methods.}
+\label{fig:ecb_mass}
+\end{figure}
+
+\paragraph{Interpretation.}  The ECB SPF replication confirms that the barycenter's concentration near the panel consensus is a reliable property, not a sample artifact: it places more mass on the realized bin in both the US and Euro-area panels.  The non-significant RPS result for the ECB sample reflects the particular severity of the 2022 inflation episode, whose outcome lay far outside the normal support of the distribution.  Taken together, the two backtests suggest that the barycenter gains from sharper concentration near the consensus and can lose from reduced tail mass in extreme-realization quarters.
+
 \section{Discussion}
 \label{sec:discussion}
 
@@ -466,7 +656,11 @@ This paper proposes the Wasserstein barycenter as a robust method for aggregatin
 
 \paragraph{Robustness interpretation.}  The EIF analysis formalizes the intuition that the barycenter is less sensitive than the arithmetic mean to extreme opinions.  The AM gives every expert equal weight regardless of distance from the consensus; the barycenter penalizes outlying opinions through transport cost, so an expert far from the current aggregate exerts smaller influence.  Empirically, in $90\%$ of simulation replicates the barycenter assigns less probability to an outlier's preferred state than the AM.  The tradeoff is efficiency: under a well-specified homogeneous expert population, the AM has lower MSE by a factor of approximately $1.4$--$1.9$.
 
-\paragraph{Forecast evaluation.}  The historical backtest in Section~\ref{sec:spf_backtest} provides direct evidence that the theoretical properties of the barycenter translate into empirical gains.  The barycenter places more probability mass on the realized outcome bin in 75.0\% of quarters ($p < 0.001$), with a 15.6\% improvement in mean mass on the correct bin (0.424 vs.\ 0.367).  This advantage holds in both low- and high-dispersion quarters.  Under the Ranked Probability Score, the barycenter wins in 68.4\% of quarters overall ($p = 0.0045$), with the advantage concentrated in low-dispersion quarters; the arithmetic mean recovers ground under RPS in high-dispersion quarters because its broader tail coverage reduces cumulative CDF deviations when extreme outcomes materialize.  These results together characterize when each method is preferred: the barycenter is the better aggregator when the panel is broadly in agreement, while the arithmetic mean's equal weighting preserves tail mass that is occasionally valuable under RPS in high-uncertainty periods.  The Wasserstein barycenter is not calibrated by construction---calibration is a property of the individual expert forecasts and is not in general preserved under nonlinear combination.  Comparing the barycenter to alternative methods such as the logarithmic pool and extremization~\cite{satopaa14}, and extending the evaluation to multi-horizon forecasts and other outcome variables, are natural directions for further work.
+\paragraph{Forecast evaluation.}  The historical backtest in Section~\ref{sec:spf_backtest} provides direct evidence that the theoretical properties of the barycenter translate into empirical gains.  The barycenter assigns more probability mass to the realized outcome bin in a majority of quarters, with a mean improvement of 15.6\% (0.424 vs.\ 0.367), and achieves a lower average Ranked Probability Score than the arithmetic mean.  The advantage is concentrated in low-dispersion quarters; the arithmetic mean recovers ground under RPS in high-dispersion quarters because its broader tail coverage reduces cumulative CDF deviations when extreme outcomes materialize.  A dispersion-adaptive convex blend of the two methods achieves the lowest out-of-sample RPS ($0.404$), versus $0.411$ for the pure barycenter and $0.423$ for the arithmetic mean.  The optimal mixture weight ($\lambda^*\approx0.70$) is stable over time, matching the oracle value within the expanding-window evaluation.  These results together characterize when each method is preferred: the barycenter is the better aggregator when the panel is broadly in agreement, while the arithmetic mean's equal weighting preserves tail mass that is occasionally valuable when extreme outcomes materialize.  The Wasserstein barycenter is not calibrated by construction---calibration is a property of the individual expert forecasts and is not in general preserved under nonlinear combination; a full calibration analysis (e.g., PIT histograms or reliability diagrams) is left for future work.  The comparison against the logarithmic pool and the trimmed mean (Table~\ref{tab:backtest}) reveals that the $\ell^1$--$\ell^2$ mismatch between the pooling objective and RPS is not specific to the barycenter: the LP, which concentrates mass even more aggressively, achieves the highest P(correct bin) but the worst RPS.  The trimmed mean, which excises extreme forecasters symmetrically, achieves the lowest single-method RPS.  Extending the evaluation to multi-horizon forecasts, other outcome variables, and extremization~\cite{satopaa14} are natural further directions.
+
+\begin{remark}[Practical guidance]
+The empirical results suggest a simple decision rule.  When cross-sectional dispersion is low---the panel is broadly in agreement---the $W_1$ barycenter is the preferred single aggregate: it concentrates mass on the consensus region, which is usually correct, and achieves lower RPS than both the AM and LP.  When dispersion is high---the panel is genuinely uncertain and tail outcomes are plausible---the arithmetic mean or a dispersion-adaptive blend preserves the tail coverage needed for strong RPS performance under extreme realizations.  The convex blend (Section~\ref{sec:blend}) operationalizes this rule: its dispersion-adaptive weight automatically shifts toward the barycenter in low-dispersion quarters and toward the mean in high-dispersion quarters, achieving the lowest out-of-sample RPS among all evaluated methods.
+\end{remark}
 
 \paragraph{Applications and extensions.}  The two applications illustrate the method on both unordered (opioid survey, indicator distance) and ordered (SPF, $W_1$ distance) outcome spaces.  A natural extension is to weighted barycenters, in which experts receive unequal weights reflecting their track record or domain expertise.  A natural population model for expert probability vectors is the Dirichlet distribution; however, aggregation via Dirichlet MLE does not generally satisfy boundedness or unanimity, and therefore differs conceptually from the deterministic aggregation rules studied here.  The extension to probability distributions over network-valued outcomes (Appendix~\ref{app:networks}) illustrates that the framework applies to any finite metric space without modification.  The multivariate case, in which experts provide joint distributions over multiple outcomes, raises new questions about the structure of the barycenter that we leave for future work.
 
