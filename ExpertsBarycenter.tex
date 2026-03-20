@@ -49,13 +49,13 @@
 
 \begin{abstract}
 We study the aggregation of expert probability forecasts over a finite outcome space.
-The standard approach, the arithmetic mean (linear opinion pool), is simple and widely used but can be sensitive to extreme opinions: a small minority of forecasters assigning substantial mass to tail outcomes can pull the aggregate away from the majority view.
+The standard approach, the arithmetic mean (linear opinion pool), is widely used but sensitive to extreme opinions: a small minority of forecasters assigning substantial mass to tail outcomes can pull the aggregate away from the majority view.
 We propose the Wasserstein barycenter as a robust alternative.
-Our main result shows that under the indicator ground cost, the barycenter reduces to a constrained $\ell^1$ aggregation problem.
+Our main theoretical result shows that under the indicator ground cost, the barycenter reduces to a constrained $\ell^1$ aggregation problem.
 For ordered outcome spaces, the natural setting for histogram forecasts, the Wasserstein-1 barycenter has a closed-form solution: its cumulative distribution function is the component-wise median of the individual forecast CDFs.
-This yields an interpretable and easily computable robust aggregator for probability histograms.
-In an application to the 2022:Q1 Survey of Professional Forecasters core CPI histograms, the barycenter concentrates mass on the 2--4\% inflation range and assigns zero probability to tail bins that a minority of extreme forecasters pull into the arithmetic mean.
-Simulation evidence shows that the barycenter is less sensitive to outlying opinions than the arithmetic mean, at the expected efficiency cost under homogeneous expert populations.
+We validate the approach with a historical backtest on 76 quarters of Survey of Professional Forecasters core CPI histograms (2007--2025), scoring both methods against realized outcomes using the Ranked Probability Score and probability mass on the realized bin.
+The barycenter achieves a statistically significant improvement in mean Ranked Probability Score (Wilcoxon $p = 0.005$) and places more probability mass on the realized outcome bin in 75\% of quarters ($p < 0.001$); a dispersion-conditional analysis identifies when each method is preferred.
+Simulation evidence confirms that the robustness advantage comes with an efficiency cost under homogeneous expert populations.
 \end{abstract}
 
 \bigskip
