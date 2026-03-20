@@ -39,11 +39,11 @@
 
 \author{Aaron J. Danielson\thanks{Corresponding author.
         \textit{Email:} [add email].
-        \textit{Address:} [add affiliation].}\\[0.5ex]
-        [add affiliation]
+        \textit{Address:} Department of Computer Science, University of Texas at Austin.}\\[0.5ex]
+        University of Texas at Austin
         \and
         Arash A. Amini\\[0.5ex]
-        [add affiliation]}
+        University of California, Los Angeles}
 
 \date{}
 \maketitle
@@ -52,13 +52,13 @@
 We study the aggregation of expert probability forecasts over a finite outcome space.
 The standard approach, the arithmetic mean (linear opinion pool), is sensitive to extreme opinions: a minority assigning substantial mass to tail outcomes can distort the aggregate away from the majority view.
 We propose the Wasserstein barycenter as a robust alternative.
-Under the indicator ground cost the barycenter reduces to an $\ell^1$ aggregation problem; for ordered outcome spaces it admits a closed form---the distribution whose CDF is the component-wise median of the individual CDFs---computable without a solver.
+Under the indicator ground cost the barycenter reduces to an $\ell^1$ aggregation problem; for ordered outcome spaces it admits a closed form: the distribution whose CDF is the component-wise median of the individual CDFs, computable without a solver.
 We validate the framework across three datasets.
 On 94 binary questions from the Good Judgment Project ($\sim\!900$ forecasters each), the barycenter reduces mean Brier score by 12.5\% relative to the arithmetic mean ($p < 0.001$).
 On 76 quarters of U.S.\ Survey of Professional Forecasters core CPI histograms (2007--2025), benchmarked against the arithmetic mean, logarithmic pool, and trimmed mean, the barycenter and trimmed mean both achieve lower mean RPS than the arithmetic mean ($p < 0.01$, Wilcoxon), with the advantage concentrated in low-dispersion quarters; the logarithmic pool has the highest P(correct bin) but worst RPS, a divergence explained by the $\ell^1$--$\ell^2$ mismatch between the pooling objective and the scoring rule.
-A replication on the ECB Survey of Professional Forecasters confirms the dispersion-conditional pattern across the Euro-area panel.
-A dispersion-adaptive convex blend achieves the lowest out-of-sample forecast score in the historical evaluation.
+A replication on the ECB Survey of Professional Forecasters confirms the dispersion-conditional pattern on an independent Euro-area panel.
 Simulation evidence characterizes the robustness--efficiency tradeoff and identifies conditions under which each method is preferred.
+For applied use, we recommend a dispersion-adaptive convex blend of the barycenter and the arithmetic mean: estimated on an expanding historical window, it achieves the lowest out-of-sample RPS of all methods evaluated, improving over the arithmetic mean by 4.5\% and the trimmed mean by 7.1\%, and automatically adapts to the panel's cross-sectional agreement without manual tuning.
 \end{abstract}
 
 \bigskip
