@@ -175,7 +175,8 @@ def fig_single_draw_example(seed=0):
     ax_bc.set_title("Barycenter", fontsize=9)
 
     fig.suptitle("Expert opinions, Arithmetic Mean, and Wasserstein Barycenter",
-                 fontsize=11, y=1.02)
+                 fontsize=11)
+    fig.tight_layout()
     fig.savefig(OUTPUT_DIR / "fig4_single_draw.pdf", bbox_inches="tight")
     fig.savefig(OUTPUT_DIR / "fig4_single_draw.png", dpi=150, bbox_inches="tight")
     plt.close(fig)

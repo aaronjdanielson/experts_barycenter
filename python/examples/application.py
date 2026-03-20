@@ -128,7 +128,7 @@ def fig_am_vs_bc_scatter(am, bc, interventions, categories):
         ax.scatter(a, b, color=CATEGORY_COLORS[cat], s=60, zorder=3)
         if abs(a - b) > 0.02 or max(a, b) > 0.05:
             ax.annotate(interventions[i].replace("-", "\n"),
-                        (a, b), fontsize=5.5, ha="left",
+                        (a, b), fontsize=7, ha="left",
                         xytext=(4, 2), textcoords="offset points")
     lo, hi = 0, max(am.max(), bc.max()) * 1.1
     ax.plot([lo, hi], [lo, hi], "k--", lw=0.8, label="AM = BC")

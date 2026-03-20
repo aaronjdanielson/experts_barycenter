@@ -268,7 +268,7 @@ def run_backtest(horizon: str = "current"):
             csv = cross_sectional_variance(pmfs)
             n   = len(pmfs)
 
-            results.append({
+            row = {
                 "year": yr, "qtr": qt, "target_year": target_year,
                 "series": series_label, "n_forecasters": n,
                 "realized": realized_val, "bin_idx": bin_idx,
@@ -285,7 +285,14 @@ def run_backtest(horizon: str = "current"):
                 "lp_mass":  lp[bin_idx],
                 "tm_mass":  tm[bin_idx],
                 "dispersion": csv,
-            })
+            }
+            # Save full PMF for reliability diagram
+            for k in range(K):
+                row[f"am_p{k}"] = am[k]
+                row[f"bc_p{k}"] = bc[k]
+                row[f"lp_p{k}"] = lp[k]
+                row[f"tm_p{k}"] = tm[k]
+            results.append(row)
 
     df = pd.DataFrame(results)
     df.to_csv(OUT_DIR / f"backtest_{horizon}.csv", index=False)
@@ -298,8 +305,22 @@ def run_backtest(horizon: str = "current"):
         _print_summary(sub, horizon, series_label)
         _plot_scores(sub, horizon, series_label)
         _plot_dispersion_split(sub, horizon, series_label)
+        if horizon == "current":
+            _plot_reliability(sub, series_label)
 
     return df
+
+
+def _dm_test(loss_a, loss_b):
+    """Diebold-Mariano test, H1: loss_a < loss_b (one-sided)."""
+    from scipy import stats as _stats
+    d = np.array(loss_a) - np.array(loss_b)
+    n = len(d)
+    d_bar = d.mean()
+    var_d = np.var(d, ddof=0)
+    se = np.sqrt(max(var_d, 1e-30) / n)
+    dm = d_bar / se
+    return float(dm), float(_stats.norm.cdf(dm))
 
 
 def _print_summary(df: pd.DataFrame, horizon: str, series: str):
@@ -316,7 +337,7 @@ def _print_summary(df: pd.DataFrame, horizon: str, series: str):
             if col not in df.columns:
                 continue
             print(f"    {name:<14} mean={df[col].mean():.4f}")
-        # Wilcoxon tests vs AM
+        # Wilcoxon + DM tests vs AM
         am_col = f"am_{metric}"
         for col_prefix, name in methods[1:]:
             col = f"{col_prefix}_{metric}"
@@ -325,11 +346,15 @@ def _print_summary(df: pd.DataFrame, horizon: str, series: str):
             diff = df[col] - df[am_col]
             alt  = "less" if better == "lower" else "greater"
             try:
-                _, pval = stats.wilcoxon(diff, alternative=alt)
+                _, wpval = stats.wilcoxon(diff, alternative=alt)
             except Exception:
-                pval = float("nan")
+                wpval = float("nan")
             wins = (diff < 0).mean() * 100 if better == "lower" else (diff > 0).mean() * 100
-            print(f"    {name:<14} wins {wins:.1f}%  Wilcoxon p={pval:.4f} vs AM")
+            if better == "lower":
+                _, dmpval = _dm_test(df[col], df[am_col])
+            else:
+                _, dmpval = _dm_test(df[am_col], df[col])
+            print(f"    {name:<14} wins {wins:.1f}%  Wilcoxon p={wpval:.4f}  DM p={dmpval:.4f} vs AM")
 
 
 def _plot_scores(df: pd.DataFrame, horizon: str, series: str):
@@ -372,6 +397,43 @@ def _plot_dispersion_split(df: pd.DataFrame, horizon: str, series: str):
     fig.suptitle(f"RPS by dispersion — {horizon}-year, {series}", fontsize=11)
     fig.tight_layout()
     fname = OUT_DIR / f"dispersion_{horizon}_{series}.pdf"
+    fig.savefig(fname, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {fname.name}")
+
+
+def _plot_reliability(df: pd.DataFrame, series: str):
+    """
+    Bin-level reliability diagram.
+    For each bin k and each method, plot mean predicted probability
+    against empirical frequency of that bin being realized.
+    """
+    methods = [
+        ("am", "Arith. mean", "#d62728"),
+        ("bc", "W1 Barycenter", "#1f77b4"),
+        ("lp", "Log pool", "#2ca02c"),
+        ("tm", "Trimmed mean", "#ff7f0e"),
+    ]
+    n_total = len(df)
+    fig, axes = plt.subplots(1, len(methods), figsize=(14, 4), sharey=True)
+    for ax, (prefix, name, color) in zip(axes, methods):
+        mean_pred = np.array([df[f"{prefix}_p{k}"].mean() for k in range(K)])
+        obs_freq  = np.array([(df["bin_idx"] == k).mean() for k in range(K)])
+        ax.scatter(mean_pred, obs_freq, color=color, s=50, zorder=3)
+        for k in range(K):
+            ax.annotate(BIN_LABELS[k], (mean_pred[k], obs_freq[k]),
+                        textcoords="offset points", xytext=(4, 2), fontsize=6)
+        lim = max(mean_pred.max(), obs_freq.max()) * 1.1
+        ax.plot([0, lim], [0, lim], "k--", lw=0.8, label="45° (perfect)")
+        ax.set_xlabel("Mean predicted probability")
+        ax.set_title(name)
+        ax.set_xlim(0, lim)
+        ax.set_ylim(0, lim)
+    axes[0].set_ylabel("Empirical frequency")
+    fig.suptitle(f"Reliability diagram — SPF current-year, {series} ({n_total} quarters)",
+                 fontsize=10)
+    fig.tight_layout()
+    fname = OUT_DIR / f"fig_bt8_reliability_{series}.pdf"
     fig.savefig(fname, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved {fname.name}")
