@@ -106,7 +106,7 @@ Fix any candidate $\Psi \in \Delta_{K-1}$.  By Lemma~\ref{lem:ot_diagonal}, the 
 using the identity $a - \min(a,b) = \max(a-b,0)$ and the fact that $\sum_k(p_l(k)-\Psi(k))=0$.  Summing over $l$ gives the objective~\eqref{eq:l1obj} up to a positive constant.  The function $\Psi \mapsto \sum_{l,k}|p_l(k)-\Psi(k)|$ is continuous on the compact simplex, so the minimum is attained.
 \end{proof}
 \begin{remark}
-The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem reduces the barycenter problem to $\ell^1$ median estimation on the simplex: the unconstrained minimizer assigns each state the coordinatewise median of the expert opinions (subject to the normalization constraint $\sum_k\Psi(k)=1$), and the simplex projection shifts this toward the feasible median.  The arithmetic mean generally does not satisfy this condition and therefore does not generally coincide with the Wasserstein barycenter.
+The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem reduces the barycenter problem to $\ell^1$ median estimation on the simplex. The unconstrained minimizer assigns each state the coordinatewise median of the expert opinions (subject to the normalization constraint $\sum_k\Psi(k)=1$), and the simplex projection shifts this toward the feasible median.  The arithmetic mean generally does not satisfy this condition and therefore does not generally coincide with the Wasserstein barycenter.
 \end{remark}
 
 \begin{corollary}[Boundedness]
@@ -198,12 +198,12 @@ By Proposition~\ref{prop:w1}, $F^*(k) = \mathrm{med}\{F_j(k)\}$ and $\tilde F^*(
 \end{proof}
 
 \begin{remark}
-Proposition~\ref{prop:nonexpansive} contrasts sharply with the arithmetic mean: $\|\bar F - \tilde{\bar F}\|_\infty \leq \frac{1}{N}\sum_j\|F_j-\tilde F_j\|_\infty$.  The AM bound involves the \emph{average} CDF perturbation, so a single large outlier contributes $1/N$ of its full shift.  The barycenter bound involves the \emph{maximum} perturbation: one very large shift dominates.  This is median-like behavior — but the key practical implication runs in the opposite direction of a naive reading: the barycenter's sup-norm bound is no worse than the largest single-panel perturbation, whereas the AM's bound can be far smaller when outliers are isolated.  What the bound does guarantee is that the barycenter cannot be destabilized by many small perturbations all in the same direction.
+Proposition~\ref{prop:nonexpansive} contrasts sharply with the arithmetic mean, for which $\|\bar F - \tilde{\bar F}\|_\infty \leq \frac{1}{N}\sum_j\|F_j-\tilde F_j\|_\infty$.  The AM bound involves the \emph{average} CDF perturbation, so a single large outlier contributes $1/N$ of its full shift.  The barycenter bound involves the \emph{maximum} perturbation; one very large shift dominates.  This is median-like behavior — but the key practical implication runs in the opposite direction of a naive reading: the barycenter's sup-norm bound is no worse than the largest single-panel perturbation, whereas the AM's bound can be far smaller when outliers are isolated.  What the bound does guarantee is that the barycenter cannot be destabilized by many small perturbations all in the same direction.
 \end{remark}
 
 \begin{corollary}[Margin-Based Local Constancy]
 \label{cor:local_const}
-Assume $N$ is odd.  For each $k = 1,\ldots,K-1$, let $\gamma_k$ be the gap between the median CDF value and its nearest neighboring order statistic:
+Assume $N$ is odd.  For each $k = 1,\ldots,K-1$, define $\gamma_k$ as the gap between the median CDF value and its nearest neighboring order statistic,
 \[
   \gamma_k = \min\bigl\{F_{(m)}(k) - F_{(m-1)}(k),\; F_{(m+1)}(k) - F_{(m)}(k)\bigr\},
 \]
@@ -218,7 +218,7 @@ Under the stated condition, the perturbation is strictly smaller than the median
 \end{proof}
 
 \begin{remark}
-Corollary~\ref{cor:local_const} formalizes why the barycenter is robust in consensus regimes: when the panel CDFs are tightly clustered (large $\gamma_k$), the aggregate is completely immune to perturbations smaller than the cluster gap.  The arithmetic mean has no analogous immunity: any perturbation, however small, shifts the mean CDF by exactly $1/N$ of that amount.
+Corollary~\ref{cor:local_const} formalizes why the barycenter is robust in consensus regimes: when the panel CDFs are tightly clustered (large $\gamma_k$), the aggregate is completely immune to perturbations smaller than the cluster gap.  The arithmetic mean has no analogous immunity. Any perturbation, however small, shifts the mean CDF by exactly $1/N$ of that amount.
 \end{remark}
 
 \subsubsection*{Connection to the Ranked Probability Score}
@@ -262,7 +262,7 @@ Adding $P_0$ to $\mathbf{P}_N$ gives $\bar{P}_{N+1}(k) = \frac{N\bar{P}_N(k) + P
 \]
 \end{proof}
 \begin{remark}
-The EIF of the arithmetic mean is linear in $P_0$ and independent of $N$: every opinion, regardless of how extreme, exerts unit influence on the aggregate.  The gross error sensitivity is $\mathrm{GES}(\bar{P}) = \sup_{P_0}\|P_0 - \bar{P}_N\|_\infty \leq 1 - \min_k \bar{P}_N(k)$, which approaches $1$ as $P_0 \to \delta_k$ for any $k$.
+The EIF of the arithmetic mean is linear in $P_0$ and independent of $N$. Every opinion, regardless of how extreme, exerts unit influence on the aggregate.  The gross error sensitivity is $\mathrm{GES}(\bar{P}) = \sup_{P_0}\|P_0 - \bar{P}_N\|_\infty \leq 1 - \min_k \bar{P}_N(k)$, which approaches $1$ as $P_0 \to \delta_k$ for any $k$.
 \end{remark}
 
 The exact EIF of the Wasserstein barycenter does not admit a closed form in general, because the barycenter is defined as the solution to a nonlinear variational problem whose geometry changes when $P_0$ is added.  A useful bound is available, however, from the boundedness result of Corollary~\ref{cor:bounded}.
@@ -744,7 +744,7 @@ The following proposition extends Lemma~\ref{lem:ot_diagonal} from individual tr
 
 \begin{proposition}[Full-Diagonal Criterion]
 \label{prop:fulldiag}
-Let $\Pi^{1},\ldots,\Pi^{N}$ be $K\times K$ matrices representing the joint distributions between a candidate barycenter $\Psi$ and the probability mass functions $p_1,\ldots,p_N$ on $\Omega=\left\{1,\ldots,K\right\}$.  Suppose the matrices are feasible: for all $l$ and $k$,
+Let $\Pi^{1},\ldots,\Pi^{N}$ be $K\times K$ matrices representing the joint distributions between a candidate barycenter $\Psi$ and the probability mass functions $p_1,\ldots,p_N$ on $\Omega=\left\{1,\ldots,K\right\}$.  Suppose the matrices are feasible, satisfying for all $l$ and $k$
 \begin{align*}
 \sum_{j}\Pi_{k,j}^{l}=p_l(k),\qquad
 \sum_{j}\Pi_{j,k}^{l}=\Psi(k),
