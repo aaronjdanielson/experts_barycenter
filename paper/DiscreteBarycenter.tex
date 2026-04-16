@@ -938,6 +938,16 @@ When a training window of $T\geq20$ quarters is available, the learned Q-Level m
 Forecaster-level performance histories, such as lagged RPS, bias, sharpness, and upper-tail tendency, provide a natural basis for learned weights $\lambda_{it}$, making performance weighting and Q-Level selection two commuting axes of generalization; joint estimation of both, however, requires a longer panel than the SPF's $T=40$ training window and is therefore left for future work.  A natural extension is to weighted barycenters in which experts receive unequal weights reflecting their track record; Appendix~\ref{app:robustness} establishes the weighted analogue and its robustness properties.  A natural population model for expert probability vectors is the Dirichlet distribution; however, aggregation via Dirichlet MLE does not generally satisfy boundedness or unanimity, and therefore differs conceptually from the deterministic aggregation rules studied here.  The extension to probability distributions over network-valued outcomes is noted in Appendix~\ref{app:networks}.  The multivariate case, in which experts provide joint distributions over multiple outcomes, raises new questions about the structure of the barycenter that we leave for future work.
 
 \appendix
+\renewcommand{\thesection}{S\arabic{section}}
+\setcounter{section}{0}
+
+\clearpage
+\begin{center}
+  {\LARGE\bfseries Supplemental Materials}\\[0.5em]
+  {\large Robust Aggregation of Expert Probability Forecasts\\
+         via Wasserstein Barycenters}
+\end{center}
+\vspace{1em}
 
 %% =========================================================================
 %% Appendix A: Robustness Theory — Weighted Variants
