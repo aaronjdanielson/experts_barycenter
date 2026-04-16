@@ -2,27 +2,39 @@
 *.aux
 *.log
 *.out
+*.bbl
+*.blg
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+dissbib.aux
+barybib.aux
+barybib.log
 
-# Generated figures and output (reproduced by running examples/)
-output/
+# Generated output (reproduced by paper_replication/python/examples/run_all.py)
+paper_replication/output/
 
-# Data — SPF microdata must be downloaded from Philadelphia Fed
-data/spf/SPFmicrodata.xlsx
+# Data — must be downloaded separately (see paper_replication/README.md)
+paper_replication/data/spf/SPFmicrodata.xlsx
+paper_replication/data/gjp/survey_fcasts.yr*.tab
+paper_replication/data/gjp/ifps.csv
+paper_replication/data/ecb_spf/
+paper_replication/data/chaosnli/
+paper_replication/data/opiod/
 
-# Papers / reading PDFs (third-party copyright)
-papers/
+# Deprecated working files
+deprecated_markdowns/
 
-# Private working files
-crap/
-MeetingNotes.rtf
-aggregatepq.pdf
+# System Task files
+.claude/
+
+# Environment files
+.env
+*.env
 
 # macOS
 .DS_Store
-Icon
+Icon*
 
 # Python
 __pycache__/

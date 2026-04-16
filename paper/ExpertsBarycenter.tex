@@ -1,0 +1,80 @@
+%% Journal of Forecasting submission draft
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\graphicspath{{../figures/}}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage[left]{lineno}
+
+\doublespacing
+\linenumbers
+
+%% Math operators
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\Var}{Var}
+\DeclareMathOperator*{\supp}{supp}
+
+%% Theorem environments
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+\numberwithin{equation}{section}
+
+\begin{document}
+
+\title{Robust Aggregation of Expert Probability Forecasts\\
+       via Wasserstein Barycenters}
+
+\author{Aaron J. Danielson\thanks{Corresponding author.
+        \textit{Email:} aaron.danielson@utexas.edu.
+        \textit{Address:} Department of Computer Science, University of Texas at Austin.}\\[0.5ex]
+        University of Texas at Austin
+        \and
+        Arash A. Amini\\[0.5ex]
+        University of California, Los Angeles}
+
+\date{}
+\maketitle
+
+\begin{abstract}
+We study the aggregation of expert probability forecasts over a finite outcome space.
+The arithmetic mean (linear opinion pool) is sensitive to extreme opinions: a minority of outlier forecasters distorts the aggregate regardless of panel consensus.
+We propose the Wasserstein barycenter as a principled robust alternative: under the indicator ground cost it reduces to coordinatewise median aggregation, computable in closed form, with a breakdown point near one-half.
+On 94 binary Good Judgment Project questions the barycenter reduces mean Brier score by 12.8\% ($p < 0.001$); on 116 multi-category questions ($K \in \{3,4,5\}$) it reduces mean Brier score by 16.9\% versus the arithmetic mean, outperforming the trimmed mean ($p < 0.001$), with 20.2\% gains on genuinely unordered questions.
+On 76 quarters of U.S.\ Survey of Professional Forecasters core CPI histograms the barycenter achieves lower mean RPS than the arithmetic mean (Wilcoxon $p = 0.005$; DM $p = 0.23$ overall, reflecting variance inflation from the 2021--2022 inflation surge; DM $p < 0.001$ in low-dispersion quarters).
+But the fixed barycenter is a starting point, not a ceiling.
+A two-parameter model that learns the optimal CDF quantile level as a function of cross-sectional dispersion --- $q_\theta(D_t) = \sigma(\alpha + \beta D_t)$, with $\beta = 0$ recovering the fixed barycenter exactly --- achieves out-of-sample RPS of $0.417$ versus $0.493$ for the fixed barycenter: a \textbf{15.5\% improvement} (Wilcoxon $p < 0.001$; $25.2\%$ in high-dispersion quarters).
+The estimated $\hat\beta = -2.09$ reveals that high-uncertainty CPI episodes resolve systematically at the upper tail, a structural regularity the fixed barycenter cannot exploit.
+Fixed Wasserstein barycenters reveal aggregation as a geometric choice; learned quantile barycenters show that this geometry can be estimated from data.
+\end{abstract}
+
+\bigskip
+\noindent\textbf{Keywords:} forecast combination; opinion pooling; Wasserstein distance;
+optimal transport; Survey of Professional Forecasters; robust aggregation
+
+\bigskip
+\noindent\textbf{JEL codes:} C53, C44, D83
+
+\newpage
+
+\input{DiscreteBarycenter}
+
+\begin{thebibliography}{99}
+\input{barybib}
+\end{thebibliography}
+
+\end{document}

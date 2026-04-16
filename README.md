@@ -1,19 +1,8 @@
 # Robust Aggregation of Expert Probability Forecasts via Wasserstein Barycenters
 
-> Danielson, A.J. and Amini, A.A. (2026). "Robust Aggregation of Expert Probability Forecasts via Wasserstein Barycenters." *Journal of Forecasting* (submitted).
+> Danielson, A.J. and Amini, A.A. (2026). "Robust Aggregation of Expert Probability Forecasts via Wasserstein Barycenters." Submitted.
 
-The **Wasserstein barycenter** is a robust alternative to the arithmetic mean (linear opinion pool) for aggregating expert probability forecasts over a finite outcome space. Rather than averaging probability vectors directly, it finds the distribution that minimizes total transport cost to the individual expert forecasts — downweighting extreme opinions through geometry rather than reweighting or trimming.
-
-**Key results:**
-- Under the indicator ground cost, the barycenter reduces to a constrained ℓ¹ problem (Theorem 1).
-- For ordered outcome spaces (histogram forecasts), the W₁ barycenter has a closed-form solution: the distribution whose CDF is the component-wise median of the individual CDFs (Proposition 1).
-- In a 76-quarter backtest on Survey of Professional Forecasters core CPI histograms (2007–2025), the barycenter places more probability mass on the realized outcome bin in **75% of quarters** (Wilcoxon *p* < 0.001) and achieves a significantly lower mean Ranked Probability Score (*p* = 0.005).
-
----
-
-![Probability mass on the realized outcome bin](figures/fig_bt6_mass_correct_bin.png)
-
-*Probability mass assigned to the realized Q4/Q4 core CPI outcome bin, quarter by quarter (2007–2025). The W₁ barycenter (blue) consistently places more mass on the correct bin than the arithmetic mean (red). Dashed lines mark sample means (BC: 0.424, AM: 0.367). Bottom panel shows the per-quarter difference; blue bars indicate quarters where the barycenter wins.*
+The **Wasserstein barycenter** (under the indicator ground cost, the coordinatewise CDF median) is a robust alternative to the arithmetic mean for aggregating expert probability forecasts. A learned two-parameter variant (Q-Level model) achieves −15.5% OOS RPS vs. the fixed barycenter on US SPF 2017–2024.
 
 ---
 
@@ -21,76 +10,92 @@ The **Wasserstein barycenter** is a robust alternative to the arithmetic mean (l
 
 ```
 experts_barycenter/
-├── ExpertsBarycenter.tex          # Main paper (wrapper + abstract)
-├── DiscreteBarycenter.tex         # Paper body
-├── barybib.tex                    # Bibliography
-├── data/
-│   ├── opioid/                    # Expert survey data (tab-separated)
-│   └── spf/                       # SPF microdata (see below)
-├── python/
-│   ├── wbarycenter/               # Python package (barycenter solver)
-│   ├── examples/                  # Replication scripts
-│   ├── pyproject.toml
-│   └── README.md                  # Package API reference
-└── output/                        # Generated figures (git-ignored)
+├── paper/
+│   ├── ExpertsBarycenter.tex          # Root LaTeX file (compiles the paper)
+│   ├── DiscreteBarycenter.tex         # Paper body (~1800 lines)
+│   └── barybib.tex                    # Bibliography
+├── figures/                           # Generated PDF figures (written by pipeline, read by paper)
+├── paper_replication/                 # Self-contained replication package
+│   ├── README.md                      # Full replication guide + audit log
+│   ├── python/
+│   │   ├── wbarycenter/               # Core library (barycenter, aggregators, learned geometry)
+│   │   ├── examples/                  # Replication scripts (one per paper section)
+│   │   │   └── run_all.py             # Master pipeline — runs all steps in order
+│   │   ├── pyproject.toml
+│   │   └── requirements.txt
+│   ├── data/                          # Raw data (gitignored — see paper_replication/README.md)
+│   └── output/                        # Generated CSVs (gitignored — reproduced by pipeline)
+└── deprecated_markdowns/              # Legacy agent reports and working files (gitignored)
 ```
 
-## Python package
+---
 
-Install from GitHub:
+## Setup
+
+Requires Python 3.11+. From the repository root:
 
 ```bash
-pip install git+https://github.com/aaronjdanielson/experts_barycenter.git#subdirectory=python
+pip install -r paper_replication/python/requirements.txt
+pip install -e paper_replication/python/
+pip install torch cvxpy   # required for Q-Level model (Step 6)
 ```
 
-Or clone and install in editable mode:
+> **Note (Python 3.14 on macOS):** Use `python3 -m pip install ...` if `pip` points to a different Python version.
 
-```bash
-git clone https://github.com/aaronjdanielson/experts_barycenter
-cd experts_barycenter/python
-pip install -e .
-```
+---
 
-See [python/README.md](python/README.md) for the full API and quick-start examples.
+## Data
+
+Data files are not tracked in git and must be downloaded separately. See **[paper_replication/README.md](paper_replication/README.md)** for download sources and exact file paths.
+
+- **US SPF**: `paper_replication/data/spf/SPFmicrodata.xlsx` (Philadelphia Fed)
+- **GJP**: `paper_replication/data/gjp/ifps.csv` + `survey_fcasts.yr1–4.tab` (Harvard Dataverse, CC0)
+- **ECB SPF**: downloaded automatically via ECB SDW API
+- **ChaosNLI**: `paper_replication/data/chaosnli/chaosNLI_v1.0/` (JSON files)
+
+Set `FRED_API_KEY` for live CPI data; scripts fall back to hardcoded values (2007–2025) otherwise.
+
+---
 
 ## Replication
 
-All scripts should be run from the **repository root**. Run in the following order:
+From the **repository root**:
 
 ```bash
-# Theory figures
-python python/examples/robustness.py               # §3 Robustness / EIF figures
-python python/examples/simulations_study.py        # §4 Simulation tables and figures
+# Full pipeline (skips MMLU which requires OpenAI/Groq API keys)
+python paper_replication/python/examples/run_all.py --skip-mmlu
 
-# Applications
-python python/examples/application.py              # §5 Opioid expert survey (unordered outcomes)
-python python/examples/spf_application.py          # §6 SPF single-quarter illustration (2022:Q1)
-
-# Historical backtest (§6.2)
-python python/examples/spf_backtest.py             # Run backtest, download FRED data, save CSV
-python python/examples/spf_backtest_figures.py     # Publication figures (RPS, score diff, dispersion)
-python python/examples/spf_backtest_distributions.py  # Fan chart + mass-on-correct-bin figure
+# Figures only (from existing output CSVs)
+python paper_replication/python/examples/run_all.py --figs-only
 ```
 
-Output figures are written to `output/`.
+Steps run in order:
+1. US SPF historical backtest (2007–2025, 76 quarters)
+2. Adaptive blend OOS (56-quarter expanding window)
+3. GJP binary backtest (Year 1, 94 questions)
+4. GJP multi-category backtest (Years 1–4, 116 questions)
+5. ECB SPF backtest (2010–2024, 56 quarters)
+6. Q-Level model OOS (2017–2024, 32 OOS quarters) ← main result
+7. ChaosNLI equivariance falsification test
+8. MMLU LLM ensemble [requires API keys — use `--skip-mmlu`]
 
-### SPF data
+For detailed documentation including data sources, environment notes, and a full audit of replication issues encountered, see **[paper_replication/README.md](paper_replication/README.md)**.
 
-The SPF application requires microdata from the Philadelphia Fed. Download
-`SPFmicrodata.xlsx` from the
-[Survey of Professional Forecasters](https://www.philadelphiafed.org/surveys-and-data/real-time-data-research/survey-of-professional-forecasters)
-page and place it at `data/spf/SPFmicrodata.xlsx`.
+---
 
-### FRED API key
+## Key results
 
-The backtest downloads realized core CPI from FRED. Set your API key before running `spf_backtest.py`:
+| Experiment | Result |
+|---|---|
+| US SPF (2007–2025, 76 quarters): BC vs AM | 68.4% wins, Wilcoxon p=0.005 |
+| GJP binary (94 questions): BC vs AM | 12.8% Brier reduction, 79/94 wins |
+| GJP multi-category (116 questions): BC vs AM | 16.9% Brier reduction (p<0.001) |
+| GJP multi-category (unordered, n=30): BC vs AM | 20.2% Brier reduction |
+| US SPF adaptive blend (56 quarters): blend vs AM | 4.3% RPS reduction (p<0.001) |
+| Q-Level model OOS (2017–2024): vs fixed BC | **−15.5% RPS** (p<0.001); −25.2% in high-dispersion quarters |
+| ChaosNLI (exchangeable annotators): BC vs AM | AM wins (+8.0%), as predicted by scope conditions |
 
-```bash
-export FRED_API_KEY=your_key_here
-python python/examples/spf_backtest.py
-```
-
-A free API key is available at [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html). If no key is set, the script falls back to hardcoded historical values.
+---
 
 ## License
 

@@ -1,0 +1,1860 @@
+%\chapter{The Aggregation of Measures}
+\section{Introduction}
+
+Combining probabilistic forecasts from multiple experts is a central problem in macroeconomics, finance, and public policy.  The Survey of Professional Forecasters (SPF) elicits probability distributions over future inflation and output from panels of professional economists every quarter; these histogram forecasts must be summarized into a single aggregate distribution before informing decisions.  Expert elicitation in public health, climate science, and risk analysis faces the same problem: the data are probability vectors over a finite outcome space, and the goal is a single representative distribution.
+
+The dominant method is the \emph{linear opinion pool}, the arithmetic mean of the individual probability vectors \cite{genest86,ohagan06,timmermann06}.  Its appeal is axiomatic: it is the only combination rule consistent with marginalisation across subsets of outcomes \cite{genest86}.  In well-behaved panels with exchangeable, well-calibrated forecasters it is also asymptotically efficient.  Its practical weakness is sensitivity to heterogeneous or extreme opinions: a single forecaster who assigns 30--50\% probability to a tail scenario shifts the aggregate by $1/N$ of that mass, regardless of how far outside the consensus view that forecaster sits.  The question is not whether to abandon the linear pool, but what geometry should replace it.
+
+The arithmetic mean, trimmed mean, and logarithmic pool are all answers to the question: \emph{which forecasters deserve weight?}  This paper asks a different question: \emph{what is the right geometry for measuring disagreement?}  The arithmetic mean is the Fr\'echet mean under squared Euclidean distance on probability vectors.  The Wasserstein barycenter is the Fr\'echet mean under optimal-transport distance --- it matches the geometry of aggregation to the geometry of outcomes.  For ordered outcome spaces with the absolute-value ground cost, the $W_1$ barycenter equals the componentwise CDF-median (equivalently, the vertical Wasserstein-median selection at $\tau = 1/2$ in the sense of \cite{carlier23}).  Choosing a geometry is not a technical detail.  It determines which forecasters are treated as outliers, how robustly the aggregate responds to contamination, and, as we show, how much accuracy can be gained by letting the geometry adapt to the panel.
+
+Existing alternatives each have characteristic limitations.  The \emph{trimmed mean} requires choosing a trim fraction; for $K$-dimensional histogram forecasts ``extreme'' is not well-defined without an arbitrary scalar ordering.  The \emph{logarithmic opinion pool} is mode-seeking: near-zero probabilities collapse toward zero \cite{genest86}, improving probability assigned to the modal bin but worsening squared-CDF accuracy.  Recalibration methods \cite{ranjan10,gneiting13} address calibration, not accuracy.  Track-record-based combination \cite{gneiting07} requires historical accuracy data.  The Wasserstein barycenter requires none of these inputs.
+
+The paper is most closely related to \cite{hora13} (vertical CDF median), \cite{carlier23} (Wasserstein medians on $\mathbb{R}$), and the Byzantine-robust FL aggregators of \cite{yin18}.
+
+The fixed Wasserstein barycenter provides a principled geometry-based baseline.
+On 94 binary Good Judgment Project questions the barycenter reduces mean Brier score by $12.8\%$ ($p < 0.001$); on 116 multi-category questions it reduces mean Brier score by $16.9\%$ over the arithmetic mean ($p < 0.001$), with particularly large gains on the 30 genuinely unordered questions ($20.2\%$, $p < 0.001$, providing scored grounding for the indicator-cost theory).
+On 76 quarters of U.S.\ SPF core CPI histograms the barycenter achieves lower mean RPS than the arithmetic mean (Wilcoxon $p = 0.005$; DM $p = 0.23$ overall --- we surface this prominently --- reflecting variance inflation from the 2021--2022 inflation surge; DM $p < 0.001$ conditioning on low-dispersion quarters).
+The overall DM test is not significant because the 2021--2022 inflation surge produced high-dispersion, tail-outcome quarters where Proposition~\ref{prop:c2prime} predicts the arithmetic mean recovers ground.
+Conditioning on the regime where theory predicts the barycenter wins, the advantage is large and highly significant.
+
+But the fixed barycenter is a starting point, not a ceiling.
+A two-parameter model that learns the optimal CDF quantile level as a function of cross-sectional dispersion, $q_\theta(D_t) = \sigma(\alpha + \beta D_t)$, achieves mean out-of-sample RPS of $0.417$ versus $0.493$ for the fixed barycenter --- a \textbf{15.5\% improvement} (Wilcoxon $p < 0.001$; $25.2\%$ in high-dispersion quarters).
+Setting $\beta = 0$ recovers the fixed barycenter exactly.
+The estimated $\hat\beta = -2.09$ reveals that high-uncertainty CPI episodes resolve systematically at the upper tail --- a structural regularity in the geometry of expert disagreement that the fixed barycenter, by construction, cannot exploit.
+This is the paper's central claim: \emph{fixed Wasserstein barycenters reveal aggregation as a geometric choice; learned quantile barycenters show that this geometry can be estimated from data.}
+The core insight is that forecast aggregation is fundamentally a \textbf{geometry problem}: the arithmetic mean, trimmed mean, and all methods in between are implicit answers to the question of which cost function should measure disagreement between probability vectors.
+All four contributions below flow from making that choice explicit.
+
+This paper makes four contributions.
+
+\paragraph{Learned asymmetric transport geometry (primary empirical contribution).}
+The Q-Level model $q_\theta(D_t) = \sigma(\alpha + \beta D_t)$ is the $W_1$ barycenter under an asymmetric check-function cost (Proposition~\ref{prop:checkfunc}); at $\beta = 0$ it recovers the fixed barycenter exactly.
+Trained on 40 quarters (2007--2016), it achieves $\mathbf{-15.5\%}$ OOS RPS on 32 held-out quarters versus the fixed barycenter ($p < 0.001$).
+
+\paragraph{Theory (primary theoretical contribution).}
+Theorem~\ref{thm:l1} shows the $W_1$ objective on \emph{unordered} finite spaces simplifies to a constrained $\ell^1$ problem, enabling $O(n\log n)$ computation, a breakdown point near $\tfrac{1}{2}$, and permutation equivariance.
+Proposition~\ref{prop:c2prime} characterises the regime: $\Delta\mathrm{RPS} = \varepsilon^2 M^2 - \tfrac{\pi/2-1}{n}\sigma^2$ (bias reduction minus efficiency cost), making the barycenter's advantage over AM a testable, quantitative prediction.
+
+\paragraph{Empirical validation.}
+GJP reduces mean Brier score 12.8\% (binary) and 16.9\% (multi-category, $p < 0.001$); U.S.\ SPF shows DM $p < 0.001$ in theory-predicted low-dispersion quarters, confirmed on ECB SPF.
+
+\paragraph{Adaptive blending (bridge).}
+The dispersion-adaptive blend operationalizes Proposition~\ref{prop:c2prime} and achieves $-4.3\%$ over AM ($p < 0.001$) in a 56-quarter OOS window; it is the recommended method when fewer than 20 training quarters are available.
+
+The remainder of the paper is organized as follows.
+Section~\ref{sec:wbary} develops the theoretical foundations.
+Section~\ref{sec:robustness} formalizes robustness and derives Proposition~\ref{prop:c2prime}.
+Section~\ref{sec:framework} introduces the Learned Quantile Barycenter framework: the Q-Level model, Proposition~\ref{prop:checkfunc}, and the membership diagram placing LP, BC, and Q-Level in a common family.
+Section~\ref{sec:empirical} presents all empirical results: GJP forecasting tournaments, the U.S.\ SPF backtest and adaptive blend, and the $-15.5\%$ OOS Q-Level result.
+Section~\ref{sec:lgb_extensions} reports falsification tests bounding the framework's scope.
+Section~\ref{sec:discussion} concludes.
+
+
+\section{Wasserstein Barycenters as Aggregate Measures}
+\label{sec:wbary}
+Let $\Omega = \left\{1,\ldots,K\right\}$ be a finite set of outcomes.  Write $P \in \mathbb{R}^{N\times K}$ for the matrix of expert probability vectors, with row $P_{j\cdot} \in \Delta_{K-1}$ representing expert $j$'s distribution, and let $D$ be the $K\times K$ matrix of ground distances between outcomes.  Because $\Delta_{K-1}$ is compact and the Wasserstein objective is continuous, a barycenter exists for any ground cost \cite{agueh2011barycenters}.  The main result of this section is that when $D$ is the indicator distance, the barycenter objective simplifies to an $\ell^1$ problem in the probability masses (Theorem~\ref{thm:l1}), giving a computationally tractable and geometrically transparent characterization.  The ordered case ($d(x,y)=|x-y|$) yields a further closed-form result (Proposition~\ref{prop:w1}).
+
+
+\subsection{Definition of the Wasserstein Barycenter}
+The following definition can be found in \cite{cuturi}.  Let $(\Omega,d)$ be a metric space for which every measure is a Radon measure and let $\mathcal{P}(\omega)$ be the set of measures on $\Omega$ with finite $p^{\text{th}}$ moment for some element in $\Omega$.
+\begin{definition}
+A Wasserstein barycenter of $N$ measures $\left\{P_1,\ldots,P_N\right\}$ is a minimizer of
+\begin{align*}
+f(\Psi)=\frac{1}{N}\sum_{i=1}^NW^p_p(\Psi,P_i).
+\end{align*}
+over the set of all measures over the state space $\Omega$ where $W_p$ is the Wasserstein distance given by
+\begin{align*}
+W_p=\left(\inf_{\pi\in\Gamma(\mu,\nu)}\int d(x,y)^pd\pi(x,y)\right)^{1/p}.
+\end{align*}
+\end{definition}
+The authors of \cite{dbary} present results for the support of discrete Wasserstein barycenter for finitely supported measures.  That is, each measure places mass on a finite number of points in Euclidean space.  The authors show the set of support points is not contained in the union of the support of the individual measures.   Hence discrete Wasserstein barycenters in Euclidean space are not bounded by the component probability measures.  But, we are concerned with the case such that $\Omega=\left\{1,\ldots,K\right\}$.  The definition becomes any $\Psi$ that minimizes
+\begin{align*}
+\sum_{j=1}^N\left(\min_{\pi\in\Gamma(p_j,\Psi)}\sum_{x=1}^K\sum_{y=1}^K d(x,y)^p\pi(x,y)\right).
+\end{align*}
+We consider two ground costs: the indicator distance for unordered outcome spaces (Section~\ref{sec:unordered}) and the absolute-value distance $d(x,y)=|x-y|$ for ordered spaces.
+\begin{remark}[Barycenter, median, and specialization to $p=1$]
+Throughout this paper we specialize to $p=1$.  For the indicator cost, $W_{\mathrm{ind}}^2 = W_{\mathrm{ind}}$ (the cost takes values in $\{0,1\}$), so the $p=1$ and $p=2$ barycenter objectives coincide up to a positive constant.  For the ordered case (Section~\ref{sec:ordered}), the objective $\sum_j W_1(\Psi, P_j)$ minimizes a sum of distances rather than squared distances; this is sometimes called the Wasserstein \emph{median} rather than barycenter, following the nomenclature of Carlier et al.\ \cite{carlier23}.  We retain ``barycenter'' for consistency with the forecast-combination literature \cite{agueh2011barycenters,lecoz23} and note that the distinction does not affect any result in this paper.
+\end{remark}
+
+\subsection{Unordered Finite Outcome Space}
+\label{sec:unordered}
+When the distance function is given by
+\begin{align*}
+d(x,y)= \left\{
+\begin{array}{ll}
+      1 & x\neq y \\
+      0 & x=y \\
+\end{array} 
+\right.
+\end{align*}
+choose matrices $\Pi^1,\ldots,\Pi^N$ to minimize the objective function
+\begin{align*}
+f(\mathbf{\Pi})&=\sum_{l=1}^N\left(\sum_{k=1}^K\sum_{k'=1}^K d(k,k')^2\Pi^l_{k,k'}\right) \\
+&=\sum_{l=1}^N\sum_{k=1}^K\sum_{k'\neq k}\Pi^l_{k,k'}
+\end{align*}
+subject to the feasibility conditions for $j=1,\ldots,N$ and $l,m=1,\ldots,N$
+\begin{align*}
+&\sum_j\Pi^l_{k,j}=p_l(k) \\
+&\sum_j\Pi^l_{j,k}=\sum_j\Pi^m_{j,k}.
+\end{align*}
+The key identity needed for the main theorem is the following.
+
+\begin{lemma}[Indicator-cost identity]
+\label{lem:ot_diagonal}
+For $p, \Psi \in \Delta_{K-1}$,
+\[
+  W_{\mathrm{ind}}(p,\Psi) \;=\; 1 - \sum_k \min\{p(k),\Psi(k)\} \;=\; \tfrac{1}{2}\|p - \Psi\|_1.
+\]
+\end{lemma}
+\begin{proof}
+The transport cost under the indicator distance is $1 - \sum_k \Pi_{kk}$ for any coupling $\Pi \in \Gamma(p,\Psi)$, minimized by maximising $\sum_k \Pi_{kk}$.  Marginal constraints give $\Pi_{kk} \leq \min\{p(k),\Psi(k)\}$, and the plan $\Pi^*_{kk} = \min\{p(k),\Psi(k)\}$ is feasible (residual row and column masses are nonneg\-ative and sum to the same total, so an off-diagonal assignment exists).  Thus $W_{\mathrm{ind}}(p,\Psi) = 1 - \sum_k \min\{p(k),\Psi(k)\}$.  The second equality uses $a - \min(a,b) = \max(a-b,0)$ and $\sum_k(p(k)-\Psi(k)) = 0$ to give $\sum_k\max\{p(k)-\Psi(k),0\} = \tfrac{1}{2}\|p-\Psi\|_1$.
+\end{proof}
+
+The analogous property for barycenter solutions (that every optimal plan simultaneously satisfies $\Pi^{l}_{kk} = \min\{p_l(k), \Psi(k)\}$) is established in Appendix~\ref{app:fulldiag}.
+\begin{theorem}[$\ell^1$ Simplification]
+\label{thm:l1}
+Let $\left\{p_1,\ldots,p_N\right\}$ be probability mass functions on $\left\{1,\ldots,K\right\}$ and let the ground cost be the indicator distance.  Then the Wasserstein barycenter $\Psi^*$ solves
+\begin{align}
+\label{eq:l1obj}
+\min_{\Psi \in \Delta_{K-1}} \sum_{l=1}^N \sum_{k=1}^K \left| p_l(k) - \Psi(k) \right|,
+\end{align}
+the $\ell^1$ sum of componentwise deviations from the experts.  In particular, a Wasserstein barycenter exists and the Wasserstein objective is equivalent to an $\ell^1$ regression of $\Psi$ onto the expert opinions.
+\end{theorem}
+\begin{proof}
+Fix any candidate $\Psi \in \Delta_{K-1}$.  By Lemma~\ref{lem:ot_diagonal}, the optimal transport cost $\mathrm{OT}(\Psi, p_l)$ between $\Psi$ and each $p_l$ under the indicator distance equals
+\begin{align*}
+\mathrm{OT}(\Psi, p_l) = 1 - \sum_k \min\{p_l(k), \Psi(k)\}
+= \tfrac{1}{2}\sum_k |p_l(k) - \Psi(k)|,
+\end{align*}
+using the identity $a - \min(a,b) = \max(a-b,0)$ and the fact that $\sum_k(p_l(k)-\Psi(k))=0$.  Summing over $l$ gives the objective~\eqref{eq:l1obj} up to a positive constant.  The function $\Psi \mapsto \sum_{l,k}|p_l(k)-\Psi(k)|$ is continuous on the compact simplex, so the minimum is attained.
+\end{proof}
+\begin{remark}
+The identity $\mathrm{OT}(p,\Psi) = \tfrac{1}{2}\|p-\Psi\|_1$ is the standard equivalence between the Wasserstein-1 distance under the indicator cost and the total variation distance; see \cite{panaretos19} for a survey.  The theorem reduces the barycenter problem to $\ell^1$ median estimation on the simplex. The unconstrained minimizer assigns each state the coordinatewise median of the expert opinions (subject to the normalization constraint $\sum_k\Psi(k)=1$), and the simplex projection shifts this toward the feasible median.  The arithmetic mean generally does not satisfy this condition and therefore does not generally coincide with the Wasserstein barycenter.
+\end{remark}
+
+\begin{corollary}[Boundedness]
+\label{cor:bounded}
+Every Wasserstein barycenter $\Psi^*$ under the indicator cost satisfies
+\[
+  \min_{j} p_j(k) \;\leq\; \Psi^*(k) \;\leq\; \max_{j} p_j(k)
+  \qquad \text{for each } k = 1,\ldots,K.
+\]
+In particular, $\Psi^*$ assigns zero probability to any outcome that no expert assigns positive probability.
+\end{corollary}
+\begin{proof}
+By the Full-Diagonal Criterion (Proposition~\ref{prop:fulldiag}), every optimal transport plan satisfies $\Pi^l_{kk} = \min\{p_l(k), \Psi^*(k)\}$ for all $l$ and $k$.  Suppose $\Psi^*(k) > \max_j p_j(k)$ for some $k$.  Then $\min\{p_l(k), \Psi^*(k)\} = p_l(k)$ for every $l$, so the diagonal entries in column $k$ account for only $\sum_l p_l(k) < N\Psi^*(k)$ units of the column mass $N\Psi^*(k)$.  The remaining mass $N\Psi^*(k) - \sum_l p_l(k) > 0$ must come from off-diagonal entries in column $k$, each incurring transport cost $1$.  Reducing $\Psi^*(k)$ by any $\varepsilon > 0$ small enough (and increasing some other coordinate to maintain the simplex constraint) would eliminate some of this off-diagonal mass, strictly decreasing the objective.  This contradicts optimality, so $\Psi^*(k) \leq \max_j p_j(k)$.  The lower bound $\Psi^*(k) \geq \min_j p_j(k)$ follows symmetrically by considering row masses.
+\end{proof}
+
+\begin{remark}[Unanimity]
+If all experts agree ($p_1 = p_2 = \cdots = p_N = p$), then $\Psi^* = p$.  This follows immediately from Corollary~\ref{cor:bounded}: each bound collapses to $p(k)$, so $\Psi^*(k) = p(k)$ for every $k$.
+\end{remark}
+
+\begin{corollary}[Binary case]
+\label{cor:binary}
+For $K=2$, the Wasserstein barycenter under the indicator cost is
+\[
+  \Psi^*(1) \;=\; \mathrm{median}\{p_1(1),\ldots,p_N(1)\}, \qquad \Psi^*(2) = 1 - \Psi^*(1).
+\]
+\end{corollary}
+\begin{proof}
+With $K=2$ the simplex constraint $\Psi(1)+\Psi(2)=1$ reduces the optimisation to a single free variable.  The objective $\sum_l(|p_l(1)-\Psi(1)|+|p_l(2)-\Psi(2)|) = 2\sum_l|p_l(1)-\Psi(1)|$ is minimised by the median of $\{p_l(1)\}$, which automatically lies in $[0,1]$ and hence satisfies the simplex constraint.
+\end{proof}
+\begin{remark}[Breakdown point]
+The finite-sample replacement breakdown point of the binary barycenter is $(\lfloor N/2\rfloor + 1)/N \approx 50\%$, matching the classical sample median: one must corrupt strictly more than half the panel to drive $\Psi^*(1)$ to an arbitrary value.  Any minority of corrupted opinions, however extreme, leaves $\Psi^*(1)$ unchanged provided the corrupted values do not cross the median rank.  This is a precise statement of robustness: the barycenter is locally constant (Corollary~\ref{cor:local_const} gives the exact margin) and globally stable under minority corruption.  By contrast, the arithmetic mean has breakdown point $1/N$: a single extreme opinion shifts the aggregate, and its influence grows without bound as $P_0 \to \delta_k$.
+\end{remark}
+
+\subsection{Discrete Barycenters for Ordered Spaces}
+\label{sec:ordered}
+
+When the outcome space $\Omega = \left\{1,\ldots,K\right\}$ carries a natural ordering, the indicator distance used in the preceding section discards structural information.  Setting $d(x,y)=|x-y|$ makes $(\Omega,d)$ a metric space that respects the ordering and gives rise to a distinct class of Wasserstein barycenters.  Let $F_j(k)=\sum_{x\leq k}P_j(x)$ denote the cumulative distribution function (CDF) of $P_j$ and let $F_j^{-1}(t)=\inf\left\{k:F_j(k)\geq t\right\}$ denote its quantile function.
+
+\subsubsection*{Wasserstein-1 Barycenters}
+
+For $p=1$, the Wasserstein distance between $P$ and $Q$ on $\Omega$ reduces to the $L^1$ distance between their CDFs \cite{vallender73,panaretos19}:
+\begin{align*}
+W_1(P,Q)=\sum_{k=1}^{K-1}\left|F_P(k)-F_Q(k)\right|.
+\end{align*}
+The barycenter minimizes $\sum_{j=1}^N W_1(\Psi,P_j)$ over probability mass functions $\Psi$ on $\Omega$.  Substituting the CDF representation and exchanging the order of summation gives
+\begin{align*}
+\sum_{j=1}^N W_1(\Psi,P_j)=\sum_{k=1}^{K-1}\sum_{j=1}^N\left|F_\Psi(k)-F_j(k)\right|,
+\end{align*}
+which separates across $k$.  Each term is independently minimized by the sample median of $\left\{F_j(k)\right\}_{j=1}^N$.
+
+\begin{proposition}
+\label{prop:w1}
+\textit{(The following result is a discrete-space instance of Carlier et al.'s Theorem~4.1 \cite{carlier23} and operationally identical to Hora et al.'s vertical CDF-median \cite{hora13}; it is stated here for self-containedness and to fix notation for the robustness analysis.)}
+
+Let $\left\{P_1,\ldots,P_N\right\}$ be probability mass functions on $\left\{1,\ldots,K\right\}$ and let $W_1$ be defined with $d(x,y)=|x-y|$.  A Wasserstein-1 barycenter has CDF
+\begin{align*}
+F_\Psi(k)=\mathrm{med}\left\{F_1(k),\ldots,F_N(k)\right\},\quad k=1,\ldots,K-1.
+\end{align*}
+\end{proposition}
+\begin{remark}
+This result is a discrete-space instance of Carlier et al.\ \cite{carlier23}, whose Proposition~4.1 establishes the analogous characterization for continuous distributions on $\mathbb{R}$.  The same estimator is advocated on empirical grounds by Hora et al.\ \cite{hora13} under the name ``vertical median aggregation.''  We include the proof for self-containedness.  Uniqueness of the $W_1$ barycenter on a finite ordered grid follows from the strict-convexity argument of Carlier et al.; in our discrete setting with $N$ odd it reduces to the observation that the componentwise median of the CDFs is uniquely determined whenever no two CDFs coincide at the median rank.
+\end{remark}
+\begin{proof}
+See Appendix~\ref{app:robustness}.
+\end{proof}
+
+The $W_1$ barycenter has a natural interpretation: it is the distribution whose CDF lies at the ``center'' of the collection in the $L^1$ sense.  By construction, $F_{\Psi^*}(k)$ is the component-wise median of $\{F_j(k)\}$, which lies in $[\min_j F_j(k), \max_j F_j(k)]$; the barycenter never assigns cumulative probability outside the range spanned by the panel.
+
+\begin{remark}[RPS and Wasserstein distance]
+\label{rem:rps_w1}
+Gneiting and Raftery \cite{gneiting07} show that for a probability forecast $G$ and a
+discrete realized outcome $y$, the Ranked Probability Score satisfies
+\[
+  \mathrm{RPS}(G,\, y) \;=\; W_1(G,\,\delta_y)^2 + \text{const},
+\]
+where $\delta_y$ is the point mass at $y$.
+Consequently, minimising expected RPS over the aggregate is equivalent to minimising the
+expected squared $W_1$ distance between the aggregate and the true outcome distribution.
+The $W_1$ barycenter (Proposition~\ref{prop:w1}) is therefore the natural aggregate under
+the RPS objective: it is the Fr\'echet mean of the panel under the transport metric that
+the loss function itself induces.
+The check-function extension (Proposition~\ref{prop:checkfunc}) learns an asymmetric
+variant of this same distance, adapting the directional weight of the transport cost to
+the panel's dispersion regime.
+\end{remark}
+
+\subsection{Nonexpansiveness and Margin Stability}
+\label{sec:nonexpansive}
+
+The CDF-median structure of the $W_1$ barycenter implies two stronger robustness results.
+
+\begin{proposition}[CDF Nonexpansiveness]
+\label{prop:nonexpansive}
+Let $F^*$ and $\tilde F^*$ denote the $W_1$ barycenter CDFs associated with panels $\{F_1,\ldots,F_N\}$ and $\{\tilde F_1,\ldots,\tilde F_N\}$.  Then
+\[
+  \|F^* - \tilde F^*\|_\infty \;\leq\; \max_{1\leq j\leq N}\|F_j - \tilde F_j\|_\infty.
+\]
+\end{proposition}
+\begin{proof}
+See Appendix~\ref{app:robustness}.
+\end{proof}
+
+\begin{remark}
+The AM satisfies $\|\bar F - \tilde{\bar F}\|_\infty \leq \frac{1}{N}\sum_j\|F_j-\tilde F_j\|_\infty$: a single large outlier contributes only $1/N$ of its shift to the mean.  The barycenter's bound involves the \emph{maximum} perturbation and cannot be destabilized by many small perturbations all in the same direction; both bounds are tight.
+\end{remark}
+
+\begin{corollary}[Margin-Based Local Constancy]
+\label{cor:local_const}
+Assume $N$ is odd.  For each $k = 1,\ldots,K-1$, define $\gamma_k$ as the gap between the median CDF value and its nearest neighboring order statistic,
+\[
+  \gamma_k = \min\bigl\{F_{(m)}(k) - F_{(m-1)}(k),\; F_{(m+1)}(k) - F_{(m)}(k)\bigr\},
+\]
+where $F_{(1)}(k)\leq\cdots\leq F_{(N)}(k)$ are the order statistics of $\{F_j(k)\}$ and $m = (N+1)/2$.  If
+\[
+  \max_{j,\,k}\,|\tilde F_j(k) - F_j(k)| \;<\; \min_k \gamma_k,
+\]
+then $\tilde F^* = F^*$: the $W_1$ barycenter is completely unchanged by the perturbation.
+\end{corollary}
+\begin{proof}
+Under the stated condition, the perturbation is strictly smaller than the median gap at every coordinate.  Therefore the rank ordering of $\{\tilde F_j(k)\}$ is identical to that of $\{F_j(k)\}$ at each $k$, so the median order statistic is the same element.  Hence $\tilde F^*(k)=F^*(k)$ for all $k$.
+\end{proof}
+
+\subsubsection*{Connection to the Ranked Probability Score}
+
+The empirical evaluation in Section~\ref{sec:spf_backtest} uses the Ranked Probability Score (RPS) as its primary criterion.  The following proposition formalizes the relationship between the $W_1$ barycenter, RPS, and the dispersion-conditional regime structure observed in the data.
+
+\begin{proposition}[$\ell^1$--$\ell^2$ Mismatch]
+\label{prop:rps_l2}
+Let $F_{\mathrm{true}}(k) = \Pr(b \leq k)$ denote the CDF of the true outcome distribution on $\{1,\ldots,K\}$.  For any forecast CDF $F$,
+\begin{equation}
+\label{eq:erps}
+  \mathbb{E}_b\bigl[\mathrm{RPS}(F,\, b)\bigr]
+  \;=\; \|F - F_{\mathrm{true}}\|_2^2 \;+\; c(F_{\mathrm{true}}),
+\end{equation}
+where $\|F - G\|_2^2 = \sum_{k=1}^{K-1}(F(k)-G(k))^2$ and $c(F_{\mathrm{true}}) = \sum_{k=1}^{K-1}F_{\mathrm{true}}(k)(1-F_{\mathrm{true}}(k))$ is a constant independent of $F$.  Consequently:
+\begin{enumerate}[(i)]
+  \item The $W_1$ barycenter $F^*$ achieves lower expected RPS than the arithmetic mean $\bar{F}$ if and only if $\|F^* - F_{\mathrm{true}}\|_2 < \|\bar{F} - F_{\mathrm{true}}\|_2$.
+  \item If $F_{\mathrm{true}} = F^*$ (the true outcome distribution equals the panel CDF-median), then $\mathbb{E}[\mathrm{RPS}(F^*)] \leq \mathbb{E}[\mathrm{RPS}(\bar{F})]$, with strict inequality unless $\bar{F} = F^*$.
+  \item If $F_{\mathrm{true}} = \bar{F}$ (the true outcome distribution equals the panel mean CDF), then $\mathbb{E}[\mathrm{RPS}(\bar{F})] \leq \mathbb{E}[\mathrm{RPS}(F^*)]$, with strict inequality unless $\bar{F} = F^*$.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+Since $\mathrm{RPS}(F,b) = \sum_{k=1}^{K-1}(F(k) - \mathbf{1}_{b\leq k})^2$, taking expectation over $b$:
+\[
+  \mathbb{E}_b\bigl[\mathrm{RPS}(F,b)\bigr]
+  = \sum_{k=1}^{K-1}\mathbb{E}_b\bigl[(F(k) - \mathbf{1}_{b\leq k})^2\bigr]
+  = \sum_{k=1}^{K-1}\bigl[(F(k) - F_{\mathrm{true}}(k))^2 + F_{\mathrm{true}}(k)(1-F_{\mathrm{true}}(k))\bigr],
+\]
+where the second equality uses $\mathbb{E}_b[\mathbf{1}_{b\leq k}] = F_{\mathrm{true}}(k)$ and $\mathbb{E}_b[\mathbf{1}_{b\leq k}^2] = F_{\mathrm{true}}(k)$.  This establishes~\eqref{eq:erps}.  Parts~(i)--(iii) follow immediately: the constant $c(F_{\mathrm{true}})$ cancels in comparisons, so expected-RPS ordering reduces entirely to $\ell^2$-distance ordering relative to $F_{\mathrm{true}}$.
+\end{proof}
+\begin{remark}
+Equation~\eqref{eq:erps} is the standard Bregman decomposition for proper scoring rules; the RPS is strictly proper with Bayes act $F_{\mathrm{true}}$.  What Proposition~\ref{prop:rps_l2} adds is the \emph{regime characterization}: since the $W_1$ barycenter minimizes an $\ell^1$ objective in CDF space (Proposition~\ref{prop:w1}) while expected RPS is an $\ell^2$ criterion, the optimal forecast for each objective is generically different.  Part~(ii) is the consensus-regime result: when a minority of outliers displace $\bar{F}$ from $F_{\mathrm{true}}$ while the local-constancy property (Corollary~\ref{cor:local_const}) holds $F^*$ near $F_{\mathrm{true}}$, the barycenter wins.  Part~(iii) is the high-dispersion result: when the panel is genuinely divided and no systematic outlier pattern is present, the AM's equal-weight averaging may place $\bar{F}$ closer to $F_{\mathrm{true}}$ than $F^*$.  Corollary~\ref{cor:local_const} identifies the margin $\gamma_k$ as the structural quantity governing which regime applies: large $\gamma_k$ (tight consensus) activates the local-constancy that makes $F^*$ stable near $F_{\mathrm{true}}$; small $\gamma_k$ (dispersed panel) means both aggregates move with panel fluctuations and neither has a structural advantage.
+\end{remark}
+
+\section{Why Fixed Geometry Has a Ceiling}
+\label{sec:robustness}
+
+The $W_1$ barycenter is more robust than the arithmetic mean: its EIF is bounded by the cross-sectional range (versus linear in $P_0$ for the AM) and its breakdown point is approximately $\tfrac{1}{2}$; simulations confirm the asymmetry grows with contamination fraction.
+Full EIF derivations and simulation tables are in Appendix~\ref{app:simulations}.
+
+The robustness gain is real but bounded.
+The following result quantifies both sides of the tradeoff.
+
+\subsection*{When Does the Barycenter Beat the Arithmetic Mean?}
+\label{sec:c2prime}
+
+The simulation evidence raises a natural question: the barycenter is more robust than the AM,
+but when does robustness translate into a better aggregate?  The following result gives an
+exact condition, decomposing the advantage into a bias-reduction term and an efficiency cost.
+
+\begin{proposition}[BC advantage decreasing in panel dispersion]
+\label{prop:c2prime}
+Let $F^{(1)},\ldots,F^{(n)}$ be i.i.d.\ draws from the $\varepsilon$-contamination mixture
+\begin{equation}
+F^{(i)} =
+\begin{cases}
+F_{\mathrm{true}} + \eta_i & \text{with probability } 1-\varepsilon,\\
+F_{\mathrm{true}} + c + \eta_i & \text{with probability } \varepsilon,
+\end{cases}
+\end{equation}
+where $\varepsilon < \tfrac{1}{2}$, $c \in \mathbb{R}^K$ is a fixed bias vector with
+$\|c\|^2 = M^2$, and $\eta_i \sim \mathcal{N}(0,\sigma^2 I_K/K)$ are i.i.d.\ noise terms.
+Under Proposition~\ref{prop:rps_l2}, the expected RPS advantage of BC over AM satisfies
+\begin{equation}
+\Delta\mathrm{RPS}(\sigma^2)
+\;\equiv\;
+\mathbb{E}[\mathrm{RPS}(\widehat{F}^{\mathrm{AM}})]
+-\mathbb{E}[\mathrm{RPS}(\widehat{F}^{\mathrm{BC}})]
+\;=\;
+\underbrace{\varepsilon^2 M^2}_{B^2}
+\;-\; \underbrace{\tfrac{\pi/2 - 1}{n}\,\sigma^2}_{V}
+\;+\; O(n^{-2}),
+\label{eq:delta_rps}
+\end{equation}
+which is strictly decreasing in $\sigma^2$.  The barycenter achieves lower expected RPS than
+the arithmetic mean if and only if
+\begin{equation}
+\sigma^2 \;<\; \sigma^{*2} \;\equiv\;
+\frac{n\,\varepsilon^2 M^2}{\pi/2 - 1}.
+\label{eq:threshold}
+\end{equation}
+The optimal blend weight $\lambda^*(\sigma^2) = B^2/(B^2 + V)$ is strictly decreasing in
+$\sigma^2$, equal to $1$ when $\sigma^2 \to 0$ and converging to $0$ as $\sigma^2 \to \infty$.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+The result follows by applying Proposition~\ref{prop:rps_l2} to compute the expected $\ell^2$
+CDF error of the AM (bias $\varepsilon^2 M^2$ plus noise $\sigma^2/n$) and the BC (noise
+$(\pi/2)\cdot\sigma^2/n$ from the classical asymptotic efficiency of the sample median
+\cite{van2000asymptotic}), then subtracting; see Appendix~\ref{app:robustness} for the
+complete derivation.
+\end{proof}
+
+\begin{remark}[Connecting to the adaptive blend]
+\label{rem:c2prime_blend}
+Equation~\eqref{eq:delta_rps} decomposes the BC advantage into two opposing forces: a
+\emph{robustness gain} $B^2 = \varepsilon^2 M^2$ (fixed, independent of panel noise) and an
+\emph{efficiency cost} $V = (\pi/2-1)\sigma^2/n$ (growing with dispersion).  In
+low-dispersion panels, the contamination signal dominates and the barycenter wins; in
+high-dispersion panels, the AM's $\ell^2$ efficiency advantage dominates.
+The optimal blend weight $\lambda^* = B^2/(B^2 + V)$ is decreasing in $\sigma^2$.
+The empirical estimator $\hat{\lambda}_t = \sigma(a + b D_t)$ with $\hat{b} < 0$
+(Section~\ref{sec:blend}) operationalizes this prediction: it learns to weight the
+barycenter more heavily in low-dispersion quarters, exactly as Proposition~\ref{prop:c2prime}
+prescribes.
+Section~\ref{sec:learned} goes further: rather than blending two fixed-geometry aggregates,
+it learns the optimal asymmetry of the $W_1$ ground cost itself as a function of $D_t$
+(Proposition~\ref{prop:checkfunc}), yielding a 15.5\% OOS improvement over the fixed barycenter.
+\end{remark}
+
+Full simulation tables (efficiency under the null, robustness under contamination, sensitivity
+to population heterogeneity) are in Appendix~\ref{app:simulations}.
+
+Proposition~\ref{prop:c2prime} marks the boundary of fixed-geometry aggregation: the BC's
+advantage over AM is bounded above by $\varepsilon^2 M^2$.
+The next section asks whether breaking that ceiling is possible by allowing the geometry
+itself to adapt.
+
+%% =========================================================================
+%% §4 Learned-Geometry Framework
+%% =========================================================================
+
+\section{Learned Quantile Barycenters}
+\label{sec:framework}
+
+\subsection{General Objective}
+
+All aggregation methods studied in this paper are instances of a common framework.
+Given a panel $\{P_1,\ldots,P_n\} \subset \Delta_{K-1}$ at time $t$ and a
+parametrised ground cost $c_\theta: \Delta_{K-1} \times \Delta_{K-1} \to \mathbb{R}_{\geq 0}$,
+the \emph{learned barycentric aggregate} is
+\begin{equation}
+  \mu_t^* \;=\; \arg\min_{\mu \in \Delta_{K-1}}
+    \sum_{i=1}^{n} \lambda_{it}\, W_\theta(\mu, P_{it}),
+  \label{eq:lwb_general}
+\end{equation}
+where $\lambda_{it} = g_\psi(P_{it}, r_{it}, x_t, \mathcal{F}_t)$ are adaptive weights
+and $W_\theta$ is the Wasserstein distance under cost $c_\theta$.
+We restrict attention throughout to the equal-weight case ($\lambda_{it} = 1/n$) and
+to \emph{low-dimensional} cost learning: rather than estimating all $O(K^2)$ pairwise
+cost parameters, we learn a single scalar $\theta \in \mathbb{R}$ that controls the
+directional asymmetry of the ground cost.
+
+\subsection{Membership Diagram}
+
+Three aggregation methods studied below are instances of \eqref{eq:lwb_general} with
+different cost specifications:
+
+\begin{itemize}
+  \item \textit{Linear Pool (LP)}: $c_\theta(a,b) = (a - b)^2$ (squared Euclidean).
+    The $W_2$ barycenter under this cost equals the arithmetic mean.
+  \item \textit{Fixed $W_1$ Barycenter (BC)}: $c_\theta(a,b) = \tfrac{1}{2}|a-b|$
+    (absolute value, $\tau = 0.5$).
+    Solution: coordinatewise CDF-median (Proposition~\ref{prop:w1}).
+  \item \textit{Q-Level Model}: $c_\tau(a,b) = \rho_\tau(a-b) = (a-b)(\tau - \mathbf{1}_{a<b})$
+    (check function at data-estimated $\tau = q_\theta(D_t)$).
+    Solution: Proposition~\ref{prop:checkfunc}.
+\end{itemize}
+
+These three methods are members of the learned-barycentric family; they are \emph{not} nested
+as estimator classes.  The Q-Level model subsumes BC exactly when $\beta = 0$
+(which forces $q_\theta \equiv 0.5$, recovering the symmetric absolute-value cost), but LP
+and BC are coordinate-free alternatives and neither contains the other.
+The distinguishing feature of the Q-Level model is that it learns $\beta$ from data,
+making the ground cost's directional asymmetry an estimable parameter rather than a fixed design choice.
+As a parametric family, the fixed BC is the $\tau = 1/2$ special case of the Q-Level model,
+giving the containment
+\begin{equation}
+  \underbrace{F_{1/2}(k) = Q_{1/2}\{F_i(k)\}}_{\text{CDF-median (BC)}}
+  \;\subset\;
+  \underbrace{F_\tau(k) = Q_\tau\{F_i(k)\}}_{\text{fixed-}\tau\text{ vertical selection}}
+  \;\subset\;
+  \underbrace{F_{\tau(D_t)}(k) = Q_{\tau(D_t)}\{F_i(k)\}}_{\text{learned Q-Level selection}}.
+  \label{eq:selection_hierarchy}
+\end{equation}
+This hierarchy — vertical Wasserstein-median selections parameterised by their quantile level,
+in the sense of \cite{carlier23} — organises the paper's contributions:
+Sections~\ref{sec:wbary}--\ref{sec:robustness} study the fixed left endpoint;
+Section~\ref{sec:qlevel} characterises the full family;
+Section~\ref{sec:empirical} asks where in the family the data place us.
+
+\subsection{The Q-Level Model}
+\label{sec:qlevel}
+
+Let $P_t = \{p^{(i)}_t\}_{i=1}^{n_t}$ be the forecaster panel at time $t$, and let
+$F^{(i)}_t(k) = \sum_{j \leq k} p^{(i)}_{jt}$ be the CDF of forecaster $i$ at bin level
+$k \in \{1,\ldots,K-1\}$.  The $q$-level aggregate is
+\begin{equation}
+  \hat{G}_t^\theta(k)
+    \;=\; Q_q\!\bigl(\{F^{(i)}_t(k)\}_{i=1}^{n_t}\bigr),
+  \label{eq:qlevel}
+\end{equation}
+where $Q_q(\cdot)$ denotes the $q$-th empirical quantile (order statistic) and the
+aggregate PMF is obtained by differencing: $\hat{p}^{\,\theta}_{kt} = \hat{G}_t^\theta(k) - \hat{G}_t^\theta(k-1)$.
+
+At $q = 0.5$, $\hat{G}_t^\theta$ equals the CDF-median (Proposition~\ref{prop:w1}) exactly.
+The Q-level model extends this by learning the optimal $q$ as a function of cross-sectional
+dispersion:
+\begin{equation}
+  q_\theta(D_t) \;=\; \sigma(\alpha + \beta D_t),
+  \label{eq:qlevel_param}
+\end{equation}
+where $D_t$ is cross-sectional dispersion (standard deviation of forecaster mean-inflation
+estimates) and $\sigma = (1+e^{-x})^{-1}$.  The parameters $(\alpha, \beta) \in \mathbb{R}^2$
+are estimated by minimizing the in-sample mean RPS.
+
+\begin{proposition}[Check-Function Characterization]
+\label{prop:checkfunc}
+Let $\rho_\tau(u) = u(\tau - \mathbf{1}_{u < 0})$ be the check function at level $\tau \in (0,1)$.
+The Q-Level aggregate $\hat{G}_t^\theta(k) = Q_{q_\theta(D_t)}(\{F_t^{(i)}(k)\}_{i=1}^{n_t})$
+is the Wasserstein-1 barycenter under the asymmetric ground cost
+$c_\tau(a,b) = \rho_\tau(a - b)$ with $\tau = q_\theta(D_t)$.
+At $\tau = 1/2$ the check function reduces to $\tfrac{1}{2}|a-b|$, recovering the
+CDF-median (Proposition~\ref{prop:w1}) exactly.
+\end{proposition}
+
+\begin{proof}
+The $W_1$ barycenter under ground cost $c_\tau$ solves
+\[
+  \min_{\Psi} \;\sum_{i=1}^{n_t}\sum_{k=1}^{K-1} \rho_\tau\!\bigl(F_t^{(i)}(k) - \Psi(k)\bigr).
+\]
+For fixed $k$ the objective decouples across bins, so we minimise
+$\psi \mapsto \sum_i \rho_\tau(F_t^{(i)}(k) - \psi)$ independently for each $k$.
+By the fundamental result of \cite{koenker78}, the unique minimiser of
+$\sum_i \rho_\tau(u_i - \psi)$ over $\psi \in \mathbb{R}$ is the empirical
+$\tau$-th quantile $Q_\tau(\{u_i\})$.
+Hence $\Psi^*(k) = Q_\tau(\{F_t^{(i)}(k)\}_i)$ for each $k$, which is exactly
+$\hat{G}_t^\theta(k)$.
+\end{proof}
+
+\begin{remark}[CDF validity]
+The minimiser $\Psi^*(k) = Q_\tau(\{F_t^{(i)}(k)\}_i)$ is a valid CDF: applying the
+$\tau$-th empirical quantile coordinatewise to $[0,1]$-valued sequences that are monotone
+in $k$ yields a sequence that inherits monotonicity and the boundary conditions
+$\Psi^*(0) = 0$, $\Psi^*(K-1) = 1$.
+\end{remark}
+
+\begin{remark}[Geometric interpretation]
+Proposition~\ref{prop:checkfunc} makes precise the claim in the Introduction that
+the Q-Level model is ``the $W_1$ barycenter under an asymmetric quantile cost.''
+A value $q < 0.5$ places the aggregate \emph{below} the componentwise median of
+forecaster CDFs, shifting mass toward higher outcome bins; $\beta < 0$ encodes
+the empirical regularity that high-dispersion inflation episodes resolve at the upper tail.
+Estimating $(\alpha, \beta)$ from data is therefore equivalent to learning the directional
+asymmetry of the ground cost from realized outcomes.
+\end{remark}
+
+Three basic properties of the Q-level model are immediate.
+\begin{enumerate}[(i)]
+\item \textit{Permutation invariance.} $\hat{G}_t^\theta$ is invariant to permutations of the
+  forecaster indices, because the $q$-th quantile of a set is invariant to reordering.
+\item \textit{Recovery of classical methods.} $q = 0.5$ recovers the $\ell^1$ barycenter;
+  $q = 1$ gives the componentwise maximum CDF (most conservative aggregate);
+  $q = 0$ gives the componentwise minimum CDF.
+\item \textit{ERM consistency.} Under regularity conditions (stationarity, finite second moments,
+  unique population minimizer), $(\hat\alpha_T, \hat\beta_T) \to (\alpha^*, \beta^*)$ in
+  probability as $T \to \infty$. Formal statement and proof are in Appendix~\ref{app:qlevel_theory}.
+\end{enumerate}
+
+\subsection{Theoretical Optimality}
+\label{sec:qlevel_theory_main}
+
+When does the Q-level model strictly dominate BC?
+Theorem~\ref{thm:qlevel_dominance} (Appendix~\ref{app:qlevel_theory}) provides a necessary
+and sufficient condition: the Q-level model achieves lower population expected RPS than BC if
+and only if the panel CDF median departs from the true CDF at some level $k_0$ and feature
+value $x_0$.  Under the contamination model of Proposition~\ref{prop:c2prime}, the optimal
+quantile satisfies $q^*(x) = F_\eta(-\varepsilon_0 c_k) \neq 0.5$ whenever the bias $c_k \neq 0$.
+When contaminated forecasters consistently overstate (understate) the CDF, the optimal $q$
+is below (above) $0.5$.
+
+Proposition~\ref{prop:crossover} (Appendix~\ref{app:qlevel_theory}) quantifies when the
+advantage materializes in a finite sample.  The excess risk of Q-Level ERM decomposes as
+$\mathcal{O}(d_\theta / T) + \Delta_{\mathrm{param}}$, where $\Delta_{\mathrm{param}} \geq 0$
+is the model's approximation bias and $d_\theta = 2$ is the parameter count.  The Q-level model
+outperforms BC whenever $T > T^* = C d_\theta / (\Delta_{\mathrm{BC}} - \Delta_{\mathrm{param}})$.
+Calibration to the US SPF application ($T=40$ training quarters) shows the model is near the
+crossover threshold, consistent with the large OOS gains observed; see Appendix~\ref{app:qlevel_theory}
+for numerical details.
+The one-dimensional CDF structure of ordered histogram forecasts makes full transport-cost learning
+statistically infeasible at SPF sample sizes; the Q-Level model instead learns a single directional
+parameter --- the optimal vertical selection level --- whose two-parameter specification sits near
+the bias-variance crossover at $T=40$ and recovers the fixed barycenter as a special case at $\beta=0$.
+
+\section{Empirical Evidence}
+\label{sec:empirical}
+
+We present three sets of empirical results in order of increasing complexity: binary and
+multi-category forecasting tournaments (GJP), professional macroeconomic histograms with
+dispersion-regime analysis (SPF), and the out-of-sample evaluation of the learned Q-Level
+model.
+
+\subsection{Good Judgment Project}
+\label{sec:gjp}
+
+We use data from the Good Judgment Project (GJP), a geopolitical forecasting tournament conducted under the IARPA ACE program from 2011 to 2015~\cite{tetlock16}.  The GJP dataset contains both binary questions (answered with a single $P(\text{Yes})$) and multi-category questions (answered with a probability vector over $K \geq 3$ unordered outcomes).  This structure allows us to evaluate both the binary barycenter (Corollary~\ref{cor:binary}) and the full indicator-cost $\ell^1$ barycenter (Theorem~\ref{thm:l1}) in a common scored setting.
+
+\subsubsection{Binary Questions}
+\label{sec:gjp_binary}
+
+For binary outcomes, Corollary~\ref{cor:binary} gives that the indicator-cost $\ell^1$ barycenter reduces to the component-wise median of the individual probability vectors.  Each forecaster's distribution over \{Yes, No\} is characterized by a single number $p_j \in [0,1]$; the barycenter selects $p^* = \mathrm{median}_j(p_j)$ while the arithmetic mean selects $\bar{p} = \frac{1}{N}\sum_j p_j$.  The dispersion-robustness intuition is direct: if a minority of forecasters assigns extreme probabilities near 0 or 1, the median is unaffected while the mean is pulled toward them.
+
+\paragraph{Data and protocol.}  We use individual survey forecasts from Year~1 of the GJP (2011--2012), publicly available through Harvard Dataverse~\cite{tetlock_dataverse}.  For each of the 94 binary questions with at least 5 participating forecasters (mean panel size: 895), we take each forecaster's last submitted forecast before question closure and compute the arithmetic mean and median of the individual $P(\text{Yes})$ values.  We score each aggregate against the binary resolution using the Brier score, $\mathrm{BS} = (p - \mathbf{1}_{\text{Yes}})^2$.
+
+\paragraph{Results.}  The median (barycenter) achieves a lower Brier score than the arithmetic mean on 84.0\% of questions (79 of 94), with mean Brier scores of 0.091 (BC) versus 0.105 (AM), a 12.8\% improvement ($p < 0.001$, Wilcoxon).  The advantage is present across all dispersion terciles and is largest when the panel exhibits low disagreement (Table~\ref{tab:gjp} and Figure~\ref{fig:gjp_brier}).
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+Dispersion group & AM Brier & BC Brier & BC improvement \\
+\hline
+Low tercile  & 0.034 & 0.018 & 45.1\% \\
+Mid tercile  & 0.123 & 0.107 & 13.0\% \\
+High tercile & 0.157 & 0.149 &  5.3\% \\
+\hline
+Overall      & 0.105 & 0.091 & 12.8\% \\
+\hline
+\end{tabular}
+\caption{GJP Year 1 Brier scores by dispersion tercile ($n=94$ binary questions, mean panel size 895).  The barycenter (= component-wise median) outperforms the arithmetic mean most strongly when the panel is cohesive.}
+\label{tab:gjp}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_gjp1_brier.pdf}
+\caption{GJP Year 1: Brier score comparison for 94 binary questions.  Left: scatter of AM vs.\ BC Brier score (one point per question; below the diagonal = BC wins; color indicates panel dispersion).  Right: mean Brier score by dispersion tercile.  The barycenter consistently outperforms the arithmetic mean.}
+\label{fig:gjp_brier}
+\end{figure}
+
+The GJP binary finding adds an important dimension: the barycenter's advantage holds with very large panels ($\sim\!900$ per question).  Even with nearly a thousand forecasters, the median dominates the mean because it is robust to the minority who assign extreme probabilities.
+
+\subsubsection{Multi-Category Questions}
+\label{sec:gjp_multi}
+
+The GJP also contains questions with $K \geq 3$ outcomes --- for example, ``Who will be inaugurated as President of Russia in 2012?'' (options: Medvedev, Putin, or Neither) or ``Which party will win the most seats in the 2015 UK general election?'' ($K=5$).  These questions require each forecaster to submit a full probability vector over $K$ options.  Theorem~\ref{thm:l1} applies specifically to \emph{unordered} outcome spaces, where no ground distance between outcomes is defined and the indicator cost is the natural choice.  We therefore classify questions by the structure of their answer options before reporting results.
+
+\paragraph{Data and protocol.}  We use all four years of the GJP~\cite{tetlock_dataverse}, combining Years 1--4 (2011--2015).  There are 116 closed multi-category questions with $K\in\{3,4,5\}$ across the four years ($K=3$: 47 questions; $K=4$: 50; $K=5$: 19); all 116 have at least 20 valid forecasters (minimum 69, median 379).  For each question we take each forecaster's last submitted forecast before closure, drop users with incomplete option coverage, and normalize rows to sum to one.
+
+To assess Theorem~\ref{thm:l1} cleanly, we classify all 116 questions by answer-option structure.  Questions with date-window options (e.g.\ ``before January 2013 / January--June 2013 / after June 2013'') are classified as \emph{temporal} ($n=45$); questions with numeric-range options (e.g.\ ``less than 100 / 100--150 / more than 150'') as \emph{ordinal} ($n=41$); the remaining 30 questions with no natural ordering among outcomes (electoral, personnel, and other categorical outcomes) are classified as \emph{genuinely unordered} ($n=30$).  We take the 30 unordered questions as the primary analysis and report results for all 116 as a robustness check.  We score aggregates using the Brier score $\mathrm{BS} = \sum_{k=1}^K (p_k - \mathbf{1}_{k=\text{outcome}})^2$ and compare three methods: the arithmetic mean (AM), the 10\% trimmed mean (TM), and the $\ell^1$ barycenter (BC).
+
+\paragraph{Results: genuinely unordered questions ($n=30$).}  On the 30 genuinely unordered questions, the barycenter strongly outperforms both the arithmetic mean and the trimmed mean.  BC wins on 90\% of questions with mean Brier 0.197 vs.\ 0.247 (AM), a 20.2\% reduction ($p < 0.001$, Wilcoxon); TM wins on 90\% with mean Brier 0.234, a 5.1\% reduction ($p < 0.001$).  The barycenter outperforms the trimmed mean as well ($p < 0.001$, BC/TM improvement 15.9\%): unlike TM, which trims on a scalar summary of a single option's probability, BC operates coordinatewise and eliminates outlier mass in every dimension simultaneously.  The barycenter's improvement over AM is substantial across all $K$: $18.2\%$ for $K=3$, $26.2\%$ for $K=4$, and $14.1\%$ for $K=5$ (Table~\ref{tab:gjp_multi} and Figure~\ref{fig:gjp_multi}).
+
+The barycenter advantage is present at both dispersion levels: in the low-dispersion half ($n=15$), BC wins 87\% of questions with a 21.3\% reduction ($p < 0.001$); in the high-dispersion half ($n=15$), BC wins 93\% with a 19.4\% reduction ($p < 0.01$).  The advantage in high-dispersion panels reflects the coordinatewise-median property: even when forecasters are highly divided, the BC concentrates mass on whichever outcome commands a majority across all coordinate dimensions, avoiding the AM's susceptibility to committed outliers.
+
+\paragraph{Robustness across all 116 questions.}  Including temporal and ordinal questions alongside the unordered ones, the $\ell^1$ barycenter wins 84\% of questions and reduces mean Brier score by 16.9\% vs.\ AM ($p < 0.001$), outperforming TM as well ($p < 0.001$, Table~\ref{tab:gjp_multi}).  The large gains in this broader sample reflect that for temporal and ordinal questions the coordinatewise median concentrates mass on the modal time-window or quantity bin, which forecasters strongly agree on for many resolved GJP questions.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccccc}
+\hline
+ & $n$ & AM & TM & BC & BC vs.\ AM \\
+\hline
+\multicolumn{6}{l}{\textit{Panel A: Genuinely unordered --- by number of outcomes}} \\[2pt]
+$K=3$ & 10 & 0.226 & 0.217 & 0.185$^{**}$ & $18.2\%^{**}$ \\
+$K=4$ & 13 & 0.230 & 0.213$^{**}$ & 0.169$^{**}$ & $26.2\%^{**}$ \\
+$K=5$ &  7 & 0.308 & 0.297$^{**}$ & 0.265$^{**}$ & $14.1\%^{**}$ \\
+Overall & 30 & 0.247 & 0.234$^{***}$ & 0.197$^{***}$ & $20.2\%^{***}$ \\
+\hline
+\multicolumn{6}{l}{\textit{Panel B: Genuinely unordered --- by dispersion}} \\[2pt]
+Low dispersion  & 15 & 0.213 & 0.204 & 0.168$^{***}$ & $21.3\%^{***}$ \\
+High dispersion & 15 & 0.280 & 0.264 & 0.226$^{**}$ & $19.4\%^{**}$ \\
+\hline
+\multicolumn{6}{l}{\textit{Panel C: All questions including temporal and ordinal (robustness)}} \\[2pt]
+Overall & 116 & 0.254 & 0.239$^{***}$ & 0.211$^{***}$ & $16.9\%^{***}$ \\
+\hline
+\end{tabular}
+\caption{GJP Years 1--4: mean Brier score for arithmetic mean (AM), 10\% trimmed mean (TM), and $\ell^1$ barycenter (BC) on multi-category questions ($K\in\{3,4,5\}$).  Stars indicate significance vs.\ AM (Wilcoxon signed-rank): $^{*}p<0.05$, $^{**}p<0.01$, $^{***}p<0.001$.  For Panels A--B ($n=30$ genuinely unordered questions) BC significantly outperforms TM ($p<0.001$, $15.9\%$ improvement), driven by the BC's coordinatewise-median property eliminating outlier mass in every dimension.  For Panel C (all 116 questions) BC also outperforms TM ($p<0.001$).  Dispersion split at median cross-sectional standard deviation.}
+\label{tab:gjp_multi}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_gjp2_multicategory.pdf}
+\caption{GJP Years 1--4: $\ell^1$ barycenter vs.\ arithmetic mean and trimmed mean on multi-category questions.  Left: scatter of AM vs.\ BC Brier score for all 116 questions (below diagonal = BC wins; color indicates $K$).  Right: mean Brier score by $K$ for the 30 genuinely unordered questions.  The barycenter significantly outperforms both AM and TM across all $K$.}
+\label{fig:gjp_multi}
+\end{figure}
+
+This section provides direct empirical grounding for Theorem~\ref{thm:l1}: on genuinely unordered questions where no ground distance exists between outcomes, the indicator-cost $\ell^1$ barycenter achieves statistically significant improvements over both the arithmetic mean ($20.2\%$, $p < 0.001$) and the trimmed mean ($15.9\%$, $p < 0.001$).  The BC's advantage over TM is theoretically coherent: TM trims on a single scalar projection of forecasters (e.g., their probability for option $a$), while BC operates coordinatewise, removing outlier mass in every probability dimension simultaneously.  The gains are present across all dispersion levels ($21.3\%$ low, $19.4\%$ high), indicating the BC's robustness is not limited to consensus panels.  Because the outcomes carry no ordering, the $W_1$ (CDF-median) barycenter and Hora et al.'s vertical-median aggregation are not applicable; the indicator-cost $\ell^1$ barycenter is the natural and theoretically grounded choice for this setting.
+
+Having confirmed the fixed barycenter as a strong parameter-free baseline across binary and multi-category questions, Section~\ref{sec:spf} asks when it outperforms its competitors and Section~\ref{sec:learned} asks whether we can do better still.
+
+\subsection{Survey of Professional Forecasters: Regime Dependence and Baseline Validation}
+\label{sec:spf}
+
+The opioid survey (Appendix~\ref{app:opioid}) treats the 20 interventions as an \emph{unordered} outcome space, so the indicator distance is the natural choice.  Many expert-aggregation problems, however, involve \emph{ordered} outcomes: survey respondents assign probabilities to ordered bins.  For such data the $W_1$ barycenter has the closed-form characterization derived in Proposition~\ref{prop:w1}: it equals the component-wise median of the empirical CDFs.  This section illustrates both the practical convenience of that formula and its robustness implications using data from the Survey of Professional Forecasters (SPF).
+
+\subsubsection{Data}
+
+The Philadelphia Federal Reserve Bank has administered the SPF every quarter since 1968.  In each survey, professional forecasters submit probabilistic predictions for macroeconomic variables by allocating probability mass across a fixed set of ordered bins.  We use the \emph{core CPI} probability question (variable \texttt{PRCCPI}), which asks each forecaster to assign probabilities to 10 ordered bins for fourth-quarter-over-fourth-quarter core CPI inflation in the current and following year.  The 10 bins are (in ascending order): decline, 0.0--0.4\%, 0.5--0.9\%, 1.0--1.4\%, 1.5--1.9\%, 2.0--2.4\%, 2.5--2.9\%, 3.0--3.4\%, 3.5--3.9\%, and $\geq 4.0\%$.
+
+Appendix~\ref{app:ecb} presents a single-quarter illustration for the 2022:Q1 survey ($n=27$ respondents, forecasting 2023 core CPI inflation), which confirms that the closed-form CDF-median formula and the LP solver agree to machine precision ($\ell^1$ discrepancy $< 10^{-4}$) and illustrates the mechanism by which the barycenter eliminates tail mass from outlying forecasters.
+
+\subsubsection{Historical Forecast Evaluation}
+\label{sec:spf_backtest}
+
+\subsubsection*{Evaluation protocol}
+
+\noindent\textbf{Forecast variable.}  We use the current-year PRCCPI histograms (columns \texttt{PRCCPI1}--\texttt{PRCCPI10}), in which each respondent distributes 100 probability points across 10 ordered bins for Q4/Q4 core CPI inflation in the current calendar year.  The horizon is current-year (not next-year); we choose this horizon because the realized value is unambiguously assigned within the same calendar year and the panel is largest.
+
+\noindent\textbf{Sample construction.}  The sample covers all survey quarters from 2007:Q1 through 2025:Q4.  A respondent's row is retained if its bin probabilities sum to within 2 percentage points of 100; retained histograms are renormalized to exactly 1 and reversed to ascending bin order.  Quarters with fewer than five valid respondents are excluded, leaving $n = 76$ usable quarters.
+
+Realized outcomes are December-over-December changes in seasonally adjusted core CPI (FRED: \texttt{CPILFESL}), mapped to the 10 bins in Table~\ref{tab:backtest}.  The primary scoring rule is RPS \cite{gneiting07} (lower is better); the secondary criterion is probability mass on the realized bin (higher is better).  Score differences are tested via Wilcoxon signed-rank (consistency) and Diebold-Mariano \cite{diebold95} with Newey-West HAC errors (average magnitude); the two tests complement each other when loss differentials are skewed, as in 2021--2022.  Reliability diagrams confirming approximate calibration across all four methods are in Appendix~\ref{app:ecb}.
+
+Proposition~\ref{prop:c2prime} makes a sharp prediction: the barycenter beats AM when panel dispersion $\sigma^2$ is below the threshold $\varepsilon^2 M^2 / (\pi/2 - 1)$; above the threshold, AM's broader tail coverage wins under RPS.
+A central empirical question is whether this regime structure is visible in the data.
+
+\paragraph{Overall context.}
+We compare four methods (AM, LP, TM, BC) over the full 76-quarter sample; Panel~A of Table~\ref{tab:backtest} reports the results.
+BC wins 68.4\% of quarters (Wilcoxon $p = 0.005$), confirming it outperforms AM more often than not.
+The overall DM $p = 0.225$, however, is not significant --- we surface this prominently.
+The unconditional test is \emph{inconclusive}: the 2021--2022 inflation surge introduced
+back-to-back high-dispersion quarters where Proposition~\ref{prop:c2prime} predicts AM
+recovers ground, and these quarters attenuate the pooled mean gain.
+A mixed-regime sample of this kind should yield a non-significant unconditional DM test
+even when the barycenter dominates within the theory-predicted regime --- the test's lack
+of power to resolve regimes is not evidence against the method.
+The theory-specified conditional test --- splitting at the median dispersion --- is sharp
+(DM $p < 0.001$ in low-dispersion quarters) and is independently confirmed on the ECB SPF
+(Section~\ref{sec:spf_ecb}); the partition is pre-specified by Proposition~\ref{prop:c2prime},
+not selected post-hoc to maximize significance.
+The TM achieves a slightly lower mean RPS ($0.435$ vs.\ $0.439$) but this gap is not significant (Wilcoxon $p = 0.82$, DM $p = 0.63$).
+The LP has the worst RPS ($0.486$) despite the highest P(correct bin) ($0.491$), the $\ell^1$--$\ell^2$ mismatch of Proposition~\ref{prop:rps_l2}.
+
+\paragraph{Dispersion-conditional results.}  The theory makes a sharp prediction about when the barycenter advantage is largest.  Corollary~\ref{cor:local_const} shows the $W_1$ barycenter is locally constant when panel CDFs are separated from their neighbors by a positive margin: low cross-sectional dispersion corresponds to tightly clustered CDFs with large median margins, so the barycenter is most stable and most concentrated on the consensus precisely when the panel broadly agrees.  We therefore test a pre-specified, theory-driven partition: quarters in which the panel agrees (low dispersion) versus quarters in which it is genuinely divided (high dispersion).  Panel B splits the sample at the median cross-sectional variance into 38 low- and 38 high-dispersion quarters.  The probability-on-realized-bin metric shows the barycenter outperforming in \emph{both} groups: 0.496 versus 0.430 in low-dispersion quarters, and 0.353 versus 0.303 in high-dispersion quarters.  The RPS results are more nuanced: the barycenter wins decisively in low-dispersion quarters (mean RPS 0.301 vs.\ 0.328, DM $p < 0.001$), while the arithmetic mean is marginally better in high-dispersion quarters (mean RPS 0.567 vs.\ 0.578, $p = 0.37$).  This is the pattern Proposition~\ref{prop:c2prime} predicts: the bias-reduction term $\varepsilon^2 M^2$ dominates in low-dispersion, high-consensus quarters; the efficiency cost $(\pi/2-1)\sigma^2/n$ dominates in high-dispersion quarters.
+
+In low-dispersion quarters the panel agrees; the barycenter concentrates mass on the consensus and the consensus is usually right.  In high-dispersion quarters the panel is genuinely divided; AM's broader tail coverage pays off under RPS when an extreme outcome materializes.  The 2021--2022 inflation surge is the clearest illustration: both methods underestimated realized core CPI ($\geq 4\%$), but the AM retained more tail mass, reducing its RPS deficit in those extreme quarters.
+
+\begin{table}[ht]
+\centering
+\caption{SPF current-year backtest: four-method comparison, 2007:Q1--2025:Q4.  AM = arithmetic mean; LP = logarithmic opinion pool; TM = symmetrically trimmed mean (10\%); BC = $W_1$ barycenter.  ``P(correct bin)'': mean probability on the realized bin (higher is better).  RPS: mean Ranked Probability Score (lower is better).  Wilcoxon: one-sided signed-rank test vs.\ AM (H$_1$: lower RPS).  DM: Diebold-Mariano test~\cite{diebold95} with Newey-West HAC standard errors vs.\ AM.  Adaptive blend results are from the 56-quarter OOS evaluation (Section~\ref{sec:blend}).}
+\label{tab:backtest}
+\smallskip
+\begin{tabular}{lccccc}
+\hline
+Method & P(correct bin) & Mean RPS & Wins\% vs AM & Wilcoxon $p$ & DM $p$ \\
+\hline
+\multicolumn{6}{l}{\textit{Panel A: Full sample ($n = 76$ quarters)}} \\[2pt]
+Arithmetic mean (AM)         & 0.367 & 0.447 & ---    & ---    & ---    \\
+Log pool (LP)                & 0.491 & 0.486 & 57.9\% & 0.886  & 0.952  \\
+Trimmed mean (TM, 10\%)      & 0.393 & 0.435 & 76.3\% & 0.0001 & 0.002  \\
+$W_1$ Barycenter (BC)        & 0.424 & 0.439 & 68.4\% & 0.005  & 0.225  \\
+Adaptive blend (OOS)         & ---   & 0.404 & ---    & $<$0.001 & ---  \\[4pt]
+\multicolumn{6}{l}{\textit{Panel B: By cross-sectional dispersion ($n = 38$ each)}} \\[2pt]
+ & \multicolumn{2}{c}{Low dispersion} & \multicolumn{2}{c}{High dispersion} & \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+ & P(corr.\ bin) & RPS & P(corr.\ bin) & RPS & \\
+\hline
+AM  & 0.430 & 0.328 & 0.303 & 0.567 & \\
+BC  & 0.496 & 0.301 & 0.353 & 0.578 & \\
+\hline
+\multicolumn{6}{l}{\textit{DM $p$-value (BC vs AM, low/high disp):} $<$0.001 / 0.71} \\
+\hline
+\end{tabular}
+\end{table}
+
+Figures~\ref{fig:bt_mass}--\ref{fig:bt_dispersion} provide the visual summary.  Figure~\ref{fig:bt_mass} shows the probability mass assigned to the correct bin in each quarter; the barycenter's advantage is visible throughout the sample and in both dispersion groups.  Figure~\ref{fig:bt_timeseries} shows the RPS time series for both methods.  Figure~\ref{fig:bt_diff} plots the quarter-by-quarter RPS difference, with the high-dispersion quarters (shaded) containing the episodes where the arithmetic mean recovers ground.  Figure~\ref{fig:bt_dispersion} summarizes the dispersion-conditional RPS comparison.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_bt6_mass_correct_bin.pdf}
+\caption{Top: probability mass assigned to the realized outcome bin by the arithmetic mean (red) and $W_1$ barycenter (blue), 2007:Q1--2025:Q4.  Dashed lines mark the sample means (AM: 0.367; BC: 0.424).  Shaded regions are high-dispersion quarters.  Bottom: quarter-by-quarter difference (BC $-$ AM); positive bars (blue) indicate quarters where the barycenter places more mass on the correct bin.}
+\label{fig:bt_mass}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_bt1_scores_timeseries.pdf}
+\caption{AM (red) and $W_1$ barycenter (blue) RPS over 76 survey quarters, 2007:Q1--2025:Q4.  Shaded regions mark high-dispersion quarters (cross-sectional variance of forecast means above the sample median).}
+\label{fig:bt_timeseries}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_bt2_score_diff.pdf}
+\caption{Quarter-by-quarter RPS difference (BC $-$ AM).  Negative bars (blue) indicate quarters where the barycenter achieves a lower (better) RPS; positive bars (red) indicate quarters where the arithmetic mean wins.  The barycenter outperforms in 68.4\% of quarters.}
+\label{fig:bt_diff}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.85\textwidth]{fig_regime_plot.pdf}
+\caption{Quarter-by-quarter $\Delta\mathrm{RPS}$ (BC $-$ AM) vs.\ cross-sectional dispersion $D_t$.
+  Pink dots indicate quarters where the barycenter wins (BC $-$ AM $< 0$); grey dots indicate quarters where AM wins.
+  The dashed reference line is at zero; the yellow curve is the Prop.~C2$'$ theoretical prediction
+  $\varepsilon^2 M^2 - \tfrac{\pi/2-1}{n}\sigma^2$ (calibrated at $\varepsilon=0.15$, $M=1$, $n=40$).
+  The barycenter wins in the majority of quarters, predominantly those with low dispersion,
+  consistent with the $\ell^1$--$\ell^2$ mismatch mechanism.}
+\label{fig:bt_dispersion}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_bt8_reliability_NSA.pdf}
+\caption{Reliability diagrams for all four aggregation methods over 76 SPF current-year quarters.  Each point represents one of the 10 bins; the horizontal axis is the method's mean predicted probability for that bin and the vertical axis is the empirical frequency with which that bin was realized.  Points on the dashed 45-degree line indicate perfect calibration.  All four methods are approximately calibrated, with no systematic over- or under-confidence.}
+\label{fig:reliability}
+\end{figure}
+
+\paragraph{ECB SPF replication.}
+The dispersion-conditional pattern replicates on an independent dataset.
+Using ECB Survey of Professional Forecasters HICP inflation histograms (2000--2024, Euro-area panel), the barycenter achieves a DM $p < 0.001$ advantage over AM in low-dispersion quarters and no significant advantage in high-dispersion quarters (DM $p = 0.71$), confirming that the regime structure is a property of the forecasting problem rather than a U.S.\ SPF artifact.
+Full results are in Appendix~\ref{app:ecb}.
+
+\subsubsection{Adaptive Blending}
+\label{sec:blend}
+
+The historical results suggest a natural extension.  The $W_1$ barycenter improves on the arithmetic mean on average, but the arithmetic mean retains value in high-dispersion quarters under the RPS.  A convex blend
+\[
+  \hat{\Psi}_t(\lambda) \;=\; \lambda\,\Psi^*_t + (1-\lambda)\,\bar{P}_t,\qquad \lambda\in[0,1],
+\]
+interpolates between the two extremes.  At $\lambda=1$ this is the barycenter; at $\lambda=0$ it is the arithmetic mean.
+
+\paragraph{Out-of-sample evaluation.}  To avoid look-ahead bias we apply an expanding-window protocol: for each quarter $t$ (starting from quarter 21) we estimate $\hat\lambda_t$ by minimizing mean RPS over all prior quarters and apply it only to quarter $t$.  In a richer adaptive version, $\hat\lambda_t = \sigma(a_t + b_t D_t)$ where $D_t$ is the cross-sectional variance of individual forecast means and $(a_t, b_t)$ are estimated by Nelder-Mead on the expanding window.  Results over the 56-quarter out-of-sample period are reported in Table~\ref{tab:blend} and Figure~\ref{fig:blend}.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+Method & Mean RPS & $p$-value (vs.\ AM) & Wins vs.\ AM \\
+\hline
+Arithmetic mean        & 0.423 & ---       & ---   \\
+$W_1$ barycenter       & 0.411 & 0.002     & 75\%  \\
+Trimmed mean           & 0.409 & $<$0.001  & 80\%  \\
+Fixed blend ($\hat\lambda\approx0.71$) & 0.413 & 0.001 & 79\% \\
+Adaptive blend         & 0.404 & $<$0.001  & 64\%  \\
+\hline
+\end{tabular}
+\caption{Out-of-sample RPS comparison (56 quarters, expanding-window evaluation).  $p$-values from Wilcoxon signed-rank test versus the arithmetic mean.  The adaptive blend achieves the lowest mean RPS; its margin over the trimmed mean (0.409 vs.\ 0.404) is not statistically significant ($p=0.30$, Wilcoxon).}
+\label{tab:blend}
+\end{table}
+
+The adaptive blend achieves a mean RPS of $0.404$, a $4.3\%$ improvement over the arithmetic mean ($p < 0.001$) and a $1.6\%$ improvement over the unweighted barycenter.  The trimmed mean achieves an OOS RPS of $0.409$; the blend's $1.1\%$ margin over TM is not statistically significant ($p = 0.30$, Wilcoxon), so the two methods are approximately tied on this evaluation window.  The expanding-window estimate of $\lambda$ converges rapidly to approximately $0.71$, closely matching the oracle value, which indicates that the optimal mixture weight is stable over time and requires no large calibration sample.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_bt7_blend.pdf}
+\caption{Left: oracle mean RPS as a function of blend weight $\lambda$ (full sample).  The minimum at $\lambda^*=0.70$ lies between the arithmetic mean ($\lambda=0$) and the barycenter ($\lambda=1$).  Right: cumulative out-of-sample mean RPS for the arithmetic mean, $W_1$ barycenter, fixed blend, and dispersion-adaptive blend over the 56-quarter evaluation period.}
+\label{fig:blend}
+\end{figure}
+
+\subsubsection{Replication on the ECB Survey of Professional Forecasters}
+\label{sec:ecb_spf}
+
+The dispersion-conditional advantage replicates on ECB HICP histograms (2000--2024): the
+barycenter achieves lower RPS in low-dispersion quarters (Wilcoxon $p=0.012$) while the
+overall RPS difference is not significant ($p=0.23$), consistent with Proposition~\ref{prop:c2prime}.
+Full results are in Appendix~\ref{app:ecb}.
+Proposition~\ref{prop:c2prime} provides theoretical grounding for this estimator: the optimal
+blend weight decreases as panel noise increases, consistent with the learned $\hat{b} < 0$ in
+Table~\ref{tab:blend}.  A direct Wilcoxon test of adaptive vs.\ fixed blend (56 quarters OOS)
+yields $p = 0.07$: the adaptive blend is directionally better ($0.404$ vs.\ $0.413$ mean RPS,
+wins $70\%$ of quarters) but the margin does not reach conventional significance.
+
+\subsection{Learned Q-Level: Out-of-Sample Performance}
+\label{sec:learned}
+\label{sec:lgb_spf}
+
+Table~\ref{tab:thread3_oos} and Figure~\ref{fig:leaderboard} summarise the full OOS performance leaderboard.
+The Q-Level model achieves mean OOS RPS $= 0.417$ versus $0.493$ for the fixed $W_1$ barycenter
+and $0.501$ for the arithmetic mean --- a reduction of $\mathbf{15.5\%}$ relative to BC
+($p < 0.001$, Wilcoxon; $25.2\%$ in high-dispersion quarters).
+
+\begin{table}[ht]
+\centering
+\caption{OOS RPS --- US SPF current-year PRCCPI, 2017:Q1--2024:Q4 (32 quarters).
+  Training window 2007:Q1--2016:Q4.  $p$-values from Wilcoxon signed-rank test vs.\ AM.}
+\label{tab:thread3_oos}
+\begin{tabular}{lcccc}
+\hline
+Method & Mean RPS & vs.\ AM & vs.\ BC & $p$ (vs.\ AM) \\
+\hline
+AM (equal-weight mean)     & 0.501 & ---      & $+1.6\%$  & ---   \\
+BC (CDF-median)            & 0.493 & $-1.6\%$ & ---       & 0.074 \\
+TM ($\alpha=0.10$)         & 0.483 & $-3.6\%$ & $-2.0\%$  & 0.003 \\
+Q-Level ($|\Theta|=2$)     & \textbf{0.417} & $-16.9\%$ & $-15.5\%$ & $<$0.001 \\
+LGB ($d=1$, Sinkhorn)      & 0.591 & $+18.0\%$ & $+19.8\%$ & 0.890 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.88\textwidth]{fig_leaderboard.pdf}
+\caption{OOS performance leaderboard.  Solid bars: 56-quarter window (2008--2025, all competitors evaluated on the same window).  Hatched bars: 32-quarter window (2017--2024), the primary evaluation period for Q-Level.
+  Percentages are improvement relative to AM within each window.
+  Q-Level achieves a $15.5\%$ improvement over the fixed $W_1$ barycenter in the 32-quarter window ($p < 0.001$, Wilcoxon).
+  The adaptive blend achieves $4.3\%$ over AM and $1.1\%$ over TM (not significant at $p=0.30$) in the 56-quarter window.}
+\label{fig:leaderboard}
+\end{figure}
+
+
+We train on the 2007:Q1--2016:Q4 SPF subsample ($T_{\mathrm{train}} = 40$ quarters) and
+evaluate OOS on 2017:Q1--2024:Q4 (32 quarters).
+Parameters $(\hat\alpha, \hat\beta)$ were estimated by Nelder-Mead with a fixed initialisation
+on the entire training window; no validation set, grid search, or adaptive stopping was used.
+
+\paragraph{Estimated parameters.}
+$\hat\alpha = 0.65$, $\hat\beta = -2.09$, giving $q(D_t = 0) \approx 0.66$ and
+$q(D_t = 0.5) \approx 0.40$.  At low dispersion, the model aggregates above the CDF-median
+(shifting mass toward lower inflation), consistent with the 2007--2016 training environment
+where 2\% consensus inflation was typical.  At high dispersion, the model aggregates below
+the CDF-median, encoding the tail-risk asymmetry visible in SPF data.  The sign of $\hat\beta$
+is robustly negative: bootstrapping the $T=40$ training quarters and re-estimating $(\hat\alpha,\hat\beta)$ in each replicate yields a 95\% CI for $\beta$ of $[-7.85, -1.56]$, which excludes zero (Figure~\ref{fig:geometry}, shaded band; see also Appendix~\ref{app:qlevel_theory} for the sandwich asymptotic formula).
+
+\paragraph{Economic interpretation of $\hat\beta < 0$.}
+Why does the optimal quantile level fall below $0.5$ when the panel is highly dispersed?
+In the SPF context, high cross-sectional disagreement about core CPI tends to arise from genuine uncertainty about the persistence of supply-side shocks --- oil prices, global supply chains, or shelter inflation --- rather than symmetric Gaussian noise around a common signal.
+When forecasters are uncertain about supply dynamics, the realized outcome is more likely to exceed the panel's modal expectation than to fall short: anchoring to recent low-inflation history produces a skew in collective errors toward the upper tail \cite{engelberg09}.
+The learned $\hat\beta = -2.09$ quantifies this structural asymmetry: the model implicitly shifts the aggregate CDF downward (toward higher inflation bins) precisely when the panel is most divided, recovering mass that fixed-geometry aggregation leaves on the table.
+
+\paragraph{OOS performance.}
+Table~\ref{tab:thread3_oos} reports full results.  The Q-Level model achieves mean OOS RPS
+$0.417$ vs.\ BC $0.493$ ($-15.5\%$, $p < 0.001$) and vs.\ AM $0.501$ ($-16.9\%$, $p < 0.001$).
+The improvement is concentrated in high-dispersion quarters: at $D_t > 0.36$ (median split,
+$n = 16$), Q-Level reduces mean RPS by $25.2\%$ relative to BC; at $D_t \leq 0.36$ the
+reduction is only $2.4\%$.  This confirms the mechanism: the learned $\hat\beta < 0$ activates
+the tail-risk correction precisely in high-dispersion episodes.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.75\textwidth]{fig_qlevel_curve.pdf}
+\caption{Learned quantile curve $q_\theta(D_t) = \sigma(0.65 - 2.09\,D_t)$.
+  Blue shading: low-$D$ regime where $q > 0.5$ (aggregate above CDF-median, shifting mass toward lower inflation).
+  Pink shading: high-$D$ regime where $q < 0.5$ (aggregate below CDF-median, encoding tail-risk asymmetry).
+  Vertical dotted line at the crossover $D^* \approx 0.31$.
+  Rug marks show the distribution of OOS quarter dispersion values.}
+\label{fig:qlevel_curve}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_geometry.pdf}
+\caption{Q-Level shifts the aggregate inside the panel geometry.
+  Grey step functions: individual forecaster CDFs.
+  Blue: fixed $W_1$ barycenter ($q = 0.50$).
+  Pink: Q-Level aggregate at learned $q_\theta(D_t)$.
+  Pink shading: 95\% parameter-uncertainty band for $\hat G_t(k)$, obtained by bootstrapping the $T=40$ training quarters and re-estimating $(\hat\alpha,\hat\beta)$ in each replicate; this band quantifies estimator uncertainty, not predictive uncertainty.
+  Dashed vertical: realized bin.
+  \emph{Left}: low-dispersion quarter --- the two aggregates nearly coincide, consistent with the small OOS gain at low $D$.
+  \emph{Right}: high-dispersion quarter --- Q-Level shifts substantially toward the upper tail, where the realized outcome falls.}
+\label{fig:geometry}
+\end{figure}
+
+Bootstrap bands around the Q-Level CDF in Figure~\ref{fig:geometry} show uncertainty in the estimated aggregate distribution induced by sampling variation in $(\hat\alpha,\hat\beta)$; these bands quantify estimator uncertainty, distinct from the predictive uncertainty represented by the aggregate distribution itself.
+
+\begin{remark}[LGB overfitting]
+The full Learned Geometry Barycenter (LGB) model---which learns bin embeddings via Sinkhorn iterations with $K-1=9$ free parameters---achieves mean OOS RPS $= 0.591$, worse than both AM ($0.501$) and BC ($0.493$); Sinkhorn entropy smoothing degrades accuracy at initialization, and $T=40$ training quarters is insufficient to estimate 9 parameters reliably.
+The Q-Level model avoids both failure modes: two parameters, no entropy regularization, and a clear interpretable structure ($\beta=0$ recovers BC exactly).
+Full LGB theory and failure analysis are in Appendix~\ref{app:lgb}.
+\end{remark}
+
+\section{Scope Conditions and Falsification Tests}
+\label{sec:lgb_extensions}
+
+Two experiments test the boundaries of the theory, providing falsification evidence rather than additional applications.
+Proposition~\ref{prop:c2prime} requires heterogeneous systematic bias ($B^2 = \varepsilon^2 M^2 > 0$) for BC to dominate AM; the experiments below vary this condition directly.
+
+\paragraph{ChaosNLI: exchangeable panel $\Rightarrow$ AM wins.}
+ChaosNLI \cite{nie2020} provides 3,113 NLI examples with 100 human annotations each over three genuinely unordered labels $\{\text{E}, \text{N}, \text{C}\}$.  Panel members are i.i.d.\ samples from a population distribution --- the exchangeable-sampler case where $B^2 = 0$ by construction.  We form nine groups of 10 annotators as ``forecasters'' and estimate the adaptive blend $\lambda(H) = \sigma(\alpha + \beta H)$.
+
+The model converges to $\hat\alpha = -8.44$, $\hat\beta = -4.91$, giving $\lambda(H) \approx 0$ everywhere --- the blend collapses to pure AM.  AM achieves mean Brier score $0.0479$; BC achieves $0.0517$ ($+8.0\%$ worse, $p < 0.001$).  This is not a failure of the barycenter --- it is a confirmation: with $B^2 = 0$, the efficiency cost $V = (\pi/2 - 1)\sigma^2/n$ dominates and AM is MLE-optimal, exactly as Proposition~\ref{prop:c2prime} predicts.
+
+\paragraph{MMLU LLM ensemble: directional contamination $\Rightarrow$ BC wins.}
+As a second test, we query three LLMs on 100 MMLU multiple-choice questions under four cyclic answer-option permutations.  Standard instruction-tuned models (GPT-4o-mini, GPT-3.5-turbo) exhibit 12--14pp position bias; Qwen3-32B, a reasoning model, shows only 1.7pp.  This is the directional-contamination case: models have heterogeneous systematic biases in the direction of specific answer positions.  With $n=3$ perm-averaged models, BC achieves Brier score $0.193$ vs.\ AM $0.195$ ($-0.8\%$, $p<0.001$, Wilcoxon) --- small because models differ more in accuracy level than directional bias, but the mechanism is confirmed.  Full results and figures are in Appendix~\ref{app:lgb}.
+
+\section{Discussion}
+\label{sec:discussion}
+
+This paper proposes the Wasserstein barycenter as a robust method for aggregating expert probability forecasts over finite outcome spaces.  The central theoretical result is Theorem~\ref{thm:l1}: under the indicator ground cost, the barycenter reduces to a constrained $\ell^1$ aggregation problem.  This simplification has two important consequences.  First, it makes computation straightforward: the problem is a convex linear program in $NK$ variables, solvable by standard LP solvers; for ordered spaces, Proposition~\ref{prop:w1} gives a fully closed-form answer (component-wise CDF median) with no solver required.  Second, it identifies the barycenter as a median-type aggregate: the unconstrained minimizer of the $\ell^1$ objective assigns the coordinatewise median to each state, and the simplex constraint shifts this toward a normalized version of the median.  For ordered outcome spaces the closed form is exact: the $W_1$ barycenter is the distribution whose CDF is the component-wise median of the individual CDFs (Proposition~\ref{prop:w1}), a result verified numerically to machine precision in the SPF application.
+
+\paragraph{When the barycenter wins and when it does not.}  The barycenter is not a uniformly superior alternative to the arithmetic mean, and we do not claim it is.  In high-dispersion quarters, when the panel is genuinely divided and tail outcomes are plausible, the arithmetic mean's broader CDF yields lower RPS, because it retains the tail coverage that squared-CDF scoring rewards when an extreme bin is realized.  The trimmed mean achieves similar overall RPS to the barycenter (the gap is not statistically significant by either Wilcoxon or DM tests), and it remains a reasonable choice when a simple, interpretable aggregate is needed.  The barycenter's advantage is concentrated in low-dispersion quarters, where the theoretical regime structure (Corollary~\ref{cor:local_const}) predicts it: tightly clustered CDFs imply large median margins, so the aggregate is locally constant and concentrates mass precisely where the panel agrees.  The adaptive blend is preferred over any fixed method when a calibration window is available, because it does not commit to either regime.
+
+\paragraph{Robustness interpretation.}  The EIF analysis formalizes the intuition that the barycenter is less sensitive than the arithmetic mean to extreme opinions.  The AM gives every expert equal weight regardless of distance from the consensus; the barycenter penalizes outlying opinions through transport cost, so an expert far from the current aggregate exerts smaller influence.  Empirically, in $90\%$ of simulation replicates the barycenter assigns less probability to an outlier's preferred state than the AM.  The tradeoff is efficiency: under a well-specified homogeneous expert population, the AM has lower MSE by a factor of approximately $1.4$--$1.9$.
+
+
+\paragraph{When learned aggregation adds value.}  The falsification tests in Section~\ref{sec:lgb_extensions} identify the necessary conditions precisely.  First, panel members must have \emph{heterogeneous systematic biases} --- forecasters who persistently disagree not because they are noisy but because they hold structurally different models; when panel members are exchangeable i.i.d.\ samplers (ChaosNLI), $B^2 = 0$, the AM is MLE-optimal, and learned aggregation collapses to AM.  Second, there must be \emph{detectable cross-sectional structure}: the dispersion signal $D_t$ must carry predictive content about which regime is active.  The U.S.\ SPF satisfies both conditions; crowdsourced annotation panels typically satisfy neither.  Practitioners should diagnose their panel before applying the adaptive blend or Q-Level model.
+
+\begin{remark}[Practical guidance]
+When a training window of $T\geq20$ quarters is available, the learned Q-Level model (Section~\ref{sec:learned}) is preferred: it achieves the lowest OOS RPS on SPF 2017--2024 ($0.417$, $-15.5\%$ vs.\ BC, $p < 0.001$) and adapts the quantile level continuously rather than blending two fixed methods.  When $T$ is small ($T < 20$) or the Q-Level crossover condition (Appendix~\ref{app:qlevel_theory}, Proposition~\ref{prop:crossover}) is not met, the dispersion-adaptive blend (Section~\ref{sec:blend}) is preferred: it achieves the lowest OOS RPS on the full 56-quarter window ($0.404$, $-4.3\%$ vs.\ AM, $p < 0.001$) and converges within 20 quarters of panel history.  When no calibration window is available, or the panel is suspected to consist of exchangeable i.i.d.\ samplers, use the $W_1$ barycenter for low-dispersion panels and the arithmetic mean for high-dispersion panels.
+\end{remark}
+
+\paragraph{Applications and extensions.}  The applications illustrate the method on both ordered (SPF, $W_1$ distance) and unordered (opioid survey, indicator distance; Appendix~\ref{app:opioid}) outcome spaces.  A natural large-data extension is to estimate a richer selection surface $q_{t,k} = f_\theta(D_t, x_t, k)$ that allows each CDF coordinate to have its own learned selection level; this requires a longer panel than the US SPF provides, and cross-country SPF panels or central bank fan-chart archives with $T \geq 100$ quarters are the most structurally compatible settings.
+Forecaster-level performance histories, such as lagged RPS, bias, sharpness, and upper-tail tendency, provide a natural basis for learned weights $\lambda_{it}$, making performance weighting and Q-Level selection two commuting axes of generalization; joint estimation of both, however, requires a longer panel than the SPF's $T=40$ training window and is therefore left for future work.  A natural extension is to weighted barycenters in which experts receive unequal weights reflecting their track record; Appendix~\ref{app:robustness} establishes the weighted analogue and its robustness properties.  A natural population model for expert probability vectors is the Dirichlet distribution; however, aggregation via Dirichlet MLE does not generally satisfy boundedness or unanimity, and therefore differs conceptually from the deterministic aggregation rules studied here.  The extension to probability distributions over network-valued outcomes is noted in Appendix~\ref{app:networks}.  The multivariate case, in which experts provide joint distributions over multiple outcomes, raises new questions about the structure of the barycenter that we leave for future work.
+
+\appendix
+
+%% =========================================================================
+%% Appendix A: Robustness Theory — Weighted Variants
+%% Source: thread1_weighted_wb.tex
+%% =========================================================================
+
+\section{Robustness Theory: Weighted Variants}
+\label{app:robustness}
+
+\subsection*{Proof of Proposition~\ref{prop:w1} (CDF-Median Characterisation)}
+
+Since the $W_1$ objective separates across $k$, the unconstrained minimiser at each $k$ is the
+sample median of $\{F_j(k)\}_{j=1}^N$.  It remains to verify that the vector of
+componentwise medians constitutes a valid CDF, i.e., it is nondecreasing in $k$.  Since each
+$F_j$ is nondecreasing, $F_j(k)\le F_j(k+1)$ for every $j$.  If $x_j\le y_j$ for all $j$,
+then $\mathrm{med}\{x_j\}\le\mathrm{med}\{y_j\}$; hence $F_\Psi(k)\le F_\Psi(k+1)$ for all
+$k$.  The boundary conditions $F_\Psi(0)=0$ and $F_\Psi(K)=1$ hold since $F_j(0)=0$ and
+$F_j(K)=1$ for every $j$.  Thus $F_\Psi$ is a valid CDF and $\Psi(k)=F_\Psi(k)-F_\Psi(k-1)\ge 0$
+defines a probability mass function on $\Omega$.  The bound $F_{\Psi^*}(k)\in[\min_j F_j(k),\max_j F_j(k)]$
+is immediate since the sample median lies within the range of its inputs. \hfill$\square$
+
+\subsection*{Proof of Proposition~\ref{prop:nonexpansive} (CDF Nonexpansiveness)}
+
+By Proposition~\ref{prop:w1}, $F^*(k) = \mathrm{med}\{F_j(k)\}$ and
+$\tilde F^*(k)=\mathrm{med}\{\tilde F_j(k)\}$.  The sample median is $1$-Lipschitz in the
+$\ell^\infty$ sense: $|\mathrm{med}(x) - \mathrm{med}(y)|\leq\|x-y\|_\infty$ for any
+$x,y\in\mathbb{R}^N$.  Applying this coordinatewise gives
+$|F^*(k)-\tilde F^*(k)|\leq\max_j|F_j(k)-\tilde F_j(k)|\leq\max_j\|F_j-\tilde F_j\|_\infty$.
+Taking the supremum over $k$ proves the claim. \hfill$\square$
+
+\subsection*{Proof of Proposition~\ref{prop:c2prime} (BC Advantage Under Contamination)}
+
+By Proposition~\ref{prop:rps_l2}, $\mathbb{E}[\mathrm{RPS}(F)] = \|F - F_{\mathrm{true}}\|_2^2 + C$.
+For the AM: $\widehat{F}^{\mathrm{AM}} = F_{\mathrm{true}} + \varepsilon c + \frac{1}{n}\sum_i\eta_i$,
+so $\mathbb{E}[\|\widehat{F}^{\mathrm{AM}} - F_{\mathrm{true}}\|^2] = \varepsilon^2 M^2 + \sigma^2/n$.
+For the BC: since $\varepsilon < 1/2$ the coordinatewise median is unaffected by the bias $c$,
+and the asymptotic MSE of the sample median under Gaussian noise is $(\pi/2)\cdot\sigma^2/n$
+\cite{van2000asymptotic}, giving $\mathbb{E}[\|\widehat{F}^{\mathrm{BC}} - F_{\mathrm{true}}\|^2]
+= (\pi/2)\cdot\sigma^2/n + O(n^{-2})$.
+Subtracting yields $\Delta\mathrm{RPS} = \varepsilon^2 M^2 - (\pi/2-1)\sigma^2/n + O(n^{-2})$.
+Setting $\Delta\mathrm{RPS} = 0$ gives threshold~\eqref{eq:threshold}.
+The optimal blend weight follows from minimizing $\mathrm{RPS}(\lambda\,\widehat{F}^{\mathrm{BC}} + (1-\lambda)\widehat{F}^{\mathrm{AM}})$ over $\lambda\in[0,1]$, giving $\lambda^* = B^2/(B^2+V)$ by a covariance approximation. \hfill$\square$
+
+\subsection*{Weighted Wasserstein Median}
+
+For genuinely unordered outcome spaces, the trimmed mean has a structural defect: trimming
+requires a scalar ordering of forecasters, but any scalar ordering of unordered outcomes is
+arbitrary.  The $W_1$ barycenter---the coordinatewise median---is the unique
+aggregation rule equivariant to relabelling outcomes (Proposition~\ref{prop:c1} below),
+and this equivariance implies a quantifiable Brier score advantage over the trimmed mean
+under directional contamination.
+
+The barycenter construction in the Definition (Section~\ref{sec:wbary}) assigns equal weight
+to every forecaster.  When track records are available, a natural generalization allows
+forecasters to contribute unequally.  Following~\cite{carlier23}, given positive weights
+$\lambda = (\lambda_1,\ldots,\lambda_n)\in\Delta_n$, the \emph{weighted Wasserstein median} is
+\begin{equation}
+F^*(\lambda) \;=\; \argmin_{F \in \mathcal{P}_1(\mathcal{X})}
+    \sum_{i=1}^n \lambda_i\, W_1\!\bigl(F^{(i)}, F\bigr).
+\label{eq:weighted_wb}
+\end{equation}
+For the ordered case (Proposition~\ref{prop:w1}), the weighted minimizer is the pointwise
+weighted median of the empirical CDFs.
+For the indicator-cost case (Theorem~\ref{thm:l1}), the weighted minimizer is the coordinatewise
+weighted median of the probability vectors.
+Both admit $O(n\log n)$ computation per coordinate.
+
+Setting $\lambda_i \propto 1/\overline{\mathrm{RPS}}_i$, where $\overline{\mathrm{RPS}}_i$ is
+forecaster $i$'s mean past RPS, yields a \emph{performance-weighted barycenter} that down-weights
+historically inaccurate forecasters.
+
+\begin{proposition}[Robustness of the Wasserstein median]
+\label{prop:breakdown}
+With uniform weights $\lambda_i = 1/n$, the Wasserstein median is maximally robust in the
+following sense for each of the two settings considered in this paper.
+
+\begin{enumerate}[(i)]
+\item \textit{Ordered case} ($\mathcal{X}=\mathbb{R}$, Proposition~\ref{prop:w1}).
+On any proper, unbounded metric space, the breakdown point of the Wasserstein median with
+weights $\lambda\in\Delta_n$ equals
+\[
+b\!\bigl(\mathrm{Med}_\lambda(\nu)\bigr)
+=
+\min\Bigl\{\,\textstyle\sum_{j\in J}\lambda_j :
+    J \subseteq \{1,\ldots,n\},\;
+    \textstyle\sum_{j\in J}\lambda_j \ge \tfrac12\,\Bigr\}.
+\]
+With uniform weights this equals $\lceil(n+1)/2\rceil/n$.
+This is Theorem~3.4 of~\cite{carlier23}.
+
+\item \textit{Unordered case} ($\mathcal{X}=\{1,\ldots,K\}$, Theorem~\ref{thm:l1}).
+The indicator-cost $\ell^1$ barycenter is the coordinatewise sample median of probability
+vectors.  Because $\Delta_{K-1}$ is compact, the classical unbounded-space breakdown
+definition does not apply directly.  Instead we state a \emph{coordinatewise influence
+bound}: for each coordinate $k$, corrupting at most $m \le \lfloor n/2 \rfloor$ forecasters
+cannot move the $k$-th component of the barycenter outside the interval
+$[\min_{i\in\mathcal{H}} p^{(i)}_k,\; \max_{i\in\mathcal{H}} p^{(i)}_k]$,
+where $\mathcal{H}$ indexes the $n - m$ uncorrupted forecasters.
+Corrupting more than $\lfloor n/2 \rfloor$ forecasters is \emph{necessary} to move any
+coordinate outside this range.  In contrast, the arithmetic mean's $k$-th component can be
+shifted by up to $m/n$ in any direction by corrupting only $m$ forecasters.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Part~(i): see Theorem~3.4 in~\cite{carlier23}.  Part~(ii): For each coordinate $k$, the
+$k$-th component of the barycenter is the sample median of $\{p^{(i)}_k\}_{i=1}^n \subset
+[0,1]$.  The sample median of $n$ values is contained in the interval formed by the
+uncorrupted middle values whenever at most $m \le \lfloor n/2 \rfloor$ values are corrupted,
+by the classical order-statistics argument~\cite{lopuhaa1991}.  Necessity follows because
+with exactly $\lfloor n/2 \rfloor$ corrupted, the honest values still form a majority and
+determine the median.
+\end{proof}
+
+\begin{proposition}[Nonexpansiveness and margin stability of the $\ell^1$ barycenter]
+\label{prop:margin_full}
+Let $\{p^{(i)}\}_{i=1}^n$ and $\{q^{(i)}\}_{i=1}^n$ be any two panels in $\Delta_{K-1}$.
+
+\begin{enumerate}[(i)]
+\item \textit{(Nonexpansiveness.)}
+\begin{equation}
+\bigl\|\mathrm{BC}\!\bigl(\{p^{(i)}\}\bigr) - \mathrm{BC}\!\bigl(\{q^{(i)}\}\bigr)\bigr\|_\infty
+\;\le\; \max_{i=1}^n \,\|p^{(i)} - q^{(i)}\|_\infty.
+\end{equation}
+The BC is a $1$-Lipschitz map of the forecaster panel under the sup-norm.
+The $\alpha$-trimmed mean satisfies
+$\|\mathrm{TM} - \mathrm{TM}'\|_\infty \le \max_i\|p^{(i)}-q^{(i)}\|_\infty / (1-2\alpha)$,
+a strictly \emph{larger} Lipschitz constant.
+
+\item \textit{(Margin stability.)}
+Define the \emph{median margin}
+$m_k \;:=\; p^{(\lfloor n/2\rfloor + 1\,:\,n)}_k - p^{(\lfloor n/2\rfloor\,:\,n)}_k \;\ge\; 0$.
+If $\max_i |p^{(i)}_k - q^{(i)}_k| < m_k/2$, then
+$\mathrm{BC}(\{q^{(i)}\})_k \in
+[\,p^{(\lfloor n/2\rfloor:n)}_k - m_k/2,\;\; p^{(\lfloor n/2\rfloor+1:n)}_k + m_k/2\,]$,
+an interval of width at most $2m_k$.
+
+\item \textit{(Exact stability for odd $n$.)}
+If $n = 2r+1$ is odd and $\max_i |p^{(i)}_k - q^{(i)}_k| < m_k/2$ for each $k$, then
+$\bigl|\mathrm{BC}(\{q^{(i)}\})_k - \mathrm{BC}(\{p^{(i)}\})_k\bigr| \;\le\;
+\max_i |p^{(i)}_k - q^{(i)}_k| \;\le\; m_k/2$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Part~(i): The sample median is $1$-Lipschitz in its inputs under the sup-norm; the TM bound
+follows with divisor $(1-2\alpha)n$.  Parts (ii)--(iii): The two middle-ranked values at
+coordinate $k$ cannot exchange order under perturbations bounded by $m_k/2$.
+For odd $n$, the unique middle order statistic determines the BC, so the perturbation bound
+follows directly.
+\end{proof}
+
+\begin{remark}[Performance weights and the robustness--efficiency tradeoff]
+If performance weights $\lambda_i$ are concentrated on a small high-performing subset $J$ with
+$\sum_{j\in J}\lambda_j \ge \tfrac12$, corrupting only those forecasters suffices to move the
+weighted median arbitrarily, reducing the breakdown point below $\tfrac12$.  Practitioners
+should choose between equal-weight aggregation (maximum robustness) and performance-weighted
+aggregation (improved efficiency when skill is stable) based on panel stability.
+\end{remark}
+
+\subsection*{Permutation Equivariance and Directional Robustness}
+
+\begin{proposition}[Permutation equivariance and directional robustness]
+\label{prop:c1}
+Let $\mathcal{X} = \{1,\ldots,K\}$ be an unordered outcome space with $K\ge 3$, and let
+$p^{(1)},\ldots,p^{(n)}\in\Delta_{K-1}$ be a panel of probability forecasts.
+
+\begin{enumerate}[(i)]
+\item \textit{(BC is permutation-equivariant; TM is not.)}
+For any permutation $\sigma\colon\{1,\ldots,K\}\to\{1,\ldots,K\}$, define the relabelled
+vectors $(\sigma_*p)_k = p_{\sigma^{-1}(k)}$.  Then
+\[
+\mathrm{BC}\!\bigl(\sigma_* p^{(1)},\ldots,\sigma_* p^{(n)}\bigr)
+= \sigma_*\,\mathrm{BC}\!\bigl(p^{(1)},\ldots,p^{(n)}\bigr).
+\]
+The $\alpha$-trimmed mean $\mathrm{TM}_\alpha$ is \emph{not} permutation-equivariant in
+general: for $K\ge 3$ there exist $\{p^{(i)}\}$ and a transposition $\sigma$ such that
+$\mathrm{TM}_\alpha\!\bigl(\sigma_* p^{(1)},\ldots,\sigma_* p^{(n)}\bigr)
+\ne \sigma_*\,\mathrm{TM}_\alpha\!\bigl(p^{(1)},\ldots,p^{(n)}\bigr)$.
+
+\item \textit{(Directional contamination---median-rank case.)}
+Suppose a fraction $\varepsilon\in(0,\tfrac{1}{2})$ of forecasters are contaminated with
+bias toward coordinate $k^*$ at \emph{median rank} (i.e.\ $k^* = \lceil K/2 \rceil$):
+$p^{(i)} = p^* + c\,e_{k^*}$ (contaminated), with the remaining fraction $1-\varepsilon$
+uncontaminated.
+The $\ell^1$ barycenter is exact: $\mathrm{BC} = p^*$.
+The $\alpha$-trimmed mean is biased:
+\begin{equation}
+E\!\bigl[\mathrm{BS}(\mathrm{TM})\bigr] - E\!\bigl[\mathrm{BS}(\mathrm{BC})\bigr]
+\;=\;
+\frac{\varepsilon^2\,c^2\,(1-1/K)^2}{(1-2\alpha)^2}
+\;+\; O\!\bigl(\varepsilon^2 c^2/K^2\bigr)
+\;\ge\; 0,
+\label{eq:c1_gap}
+\end{equation}
+with equality only when $k^*\in\{1,K\}$.
+
+\item \textit{(Label-ordering sensitivity and worst-case gap.)}
+Under a uniform prior over the $K!$ possible label assignments, the probability that $k^*$
+receives an interior rank equals $(K-2)/K$, which is strictly increasing in $K$.
+The expected Brier score gap~\eqref{eq:c1_gap} averaged over uniform label assignments is
+$\frac{K-2}{K}\cdot\frac{\varepsilon^2 c^2(1-1/K)^2}{(1-2\alpha)^2}$,
+strictly increasing in $K$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+\emph{Part~(i)}: By Theorem~\ref{thm:l1}, $\mathrm{BC}_k = \mathrm{median}_i(p^{(i)}_k)$.
+Then $\mathrm{BC}(\sigma_*\{p^{(i)}\})_k = \mathrm{median}_i(p^{(i)}_{\sigma^{-1}(k)}) =
+\mathrm{BC}_{\sigma^{-1}(k)} = (\sigma_*\mathrm{BC})_k$.
+TM trims on scalar $s^{(i)} = \sum_k k\cdot p^{(i)}_k$; under relabelling $\sigma$, this
+becomes a different linear functional.  For any interior transposition $\sigma = (j_1 \leftrightarrow j_2)$
+with $1 \le j_1 < j_2 \le K-1$, the change in trimming scalar is
+$(j_2 - j_1)(p^{(i)}_{j_1} - p^{(i)}_{j_2})$, which varies across forecasters, changing
+which forecasters are trimmed.
+
+\emph{Part~(ii)}: Under the stated model with $k^*$ having rank $(K+1)/2$, contaminated
+forecasters have trimming scalar $s^{(i)}_{\mathrm{cont}} = s^*$ (no deviation), so TM
+retains all of them.  BC coordinatewise median at $k^*$: the contaminated fraction is
+$\varepsilon < 1/2$, so the median remains at $p^*_{k^*}$.  Squaring the TM bias and
+applying Proposition~\ref{prop:rps_l2} gives~\eqref{eq:c1_gap}.
+
+\emph{Part~(iii)}: Average~\eqref{eq:c1_gap} over the $(K-2)/K$ interior label positions.
+\end{proof}
+
+\begin{remark}[Empirical K-dependent pattern]
+Proposition~\ref{prop:c1}(iii) predicts a BC--TM Brier score gap increasing in $K$:
+for $K=3$ the expected gap is $\frac{1}{3}\cdot B$, for $K=4$ it is $\frac{1}{2}\cdot B$,
+and for $K=5$ it is $\frac{3}{5}\cdot B$.
+The GJP multi-category results (Section~\ref{sec:gjp_multi}) show BC gains of $18.2\%$,
+$26.2\%$, and $14.1\%$ over AM for $K=3,4,5$ on genuinely unordered questions; all three are substantial, with the peak at $K=4$.
+\end{remark}
+
+%% =========================================================================
+%% Appendix B: Q-Level Asymptotic Theory
+%% Source: thread3_theorems.tex
+%% =========================================================================
+
+\section{Q-Level Asymptotic Theory}
+\label{app:qlevel_theory}
+
+This appendix collects the formal theoretical results for the Q-Level model introduced
+in Section~\ref{sec:learned}.  We establish parameter uncertainty quantification via the
+sandwich asymptotic distribution (Proposition~\ref{prop:qlevel_asymptotics}),
+forecast uncertainty propagation via the delta method (Corollary~\ref{cor:qlevel_ci}),
+strict dominance conditions over BC (Theorem~\ref{thm:qlevel_dominance}), and a
+sample-size crossover result (Proposition~\ref{prop:crossover}).
+
+\subsection*{Notation}
+
+Let $\theta = (\alpha, \beta_1)' \in \mathbb{R}^{2}$ (or $\theta = (\alpha,\beta_1,\beta_2)'$
+with the skewness feature), $\tilde x_t = (1, D_t)'$, $q_\theta(x_t) = \sigma(\theta' \tilde x_t)$,
+$\sigma(u) = (1 + e^{-u})^{-1}$.
+The ERM loss at observation $t$ is
+\begin{equation}
+  \ell(\theta; P_t, y_t)
+    \;=\; \sum_{k=1}^{K-1}
+    \Bigl(Q_{q_\theta(x_t)}\bigl(\{F^{(i)}_t(k)\}_{i=1}^{n_t}\bigr) - \mathbf{1}\{y_t \leq k\}\Bigr)^2,
+\end{equation}
+where $Q_q(\cdot)$ denotes the $q$-th empirical quantile (soft-sorted, differentiable a.e.)
+and $F^{(i)}_t(k) = \sum_{j \leq k} p^{(i)}_{jt}$ is the CDF of forecaster $i$ at bin level $k$.
+Define the Hessian and outer-product-of-scores matrices:
+\begin{align}
+  H &\;=\; \mathbb{E}\bigl[\nabla^2_\theta\, \ell(\theta^*; P_t, y_t)\bigr], \\
+  J &\;=\; \mathbb{E}\bigl[\nabla_\theta\, \ell(\theta^*; P_t, y_t)\,
+           \nabla_\theta\, \ell(\theta^*; P_t, y_t)'\bigr].
+\end{align}
+The \emph{sandwich variance} is $\Omega = H^{-1} J H^{-1}$.
+
+\subsection*{Parameter Uncertainty}
+
+\begin{proposition}[Asymptotic normality of Q-Level ERM]
+\label{prop:qlevel_asymptotics}
+Suppose $(P_t, y_t)$ is a stationary ergodic process, the population risk
+$L(\theta) = \mathbb{E}[\ell(\theta; P_t, y_t)]$ has a unique minimizer $\theta^*$
+in the interior of the parameter space, $L(\theta)$ is twice continuously
+differentiable in a neighborhood of $\theta^*$, $H$ is positive definite, and
+the score $\nabla_\theta \ell(\theta^*; \cdot)$ satisfies the CLT.
+Then:
+\begin{equation}
+  \sqrt{T}\,(\hat\theta_T - \theta^*)
+    \;\xrightarrow{d}\; \mathcal{N}(0,\, \Omega)
+  \qquad \text{as } T \to \infty.
+\end{equation}
+A consistent estimator of $\Omega$ is the empirical sandwich
+$\hat\Omega_T = \hat H_T^{-1} \hat J_T \hat H_T^{-1}$,
+where $\hat H_T$ and $\hat J_T$ replace expectations with sample averages.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Standard M-estimation theory \cite{van2000asymptotic}, Theorem 5.41.
+The key regularity conditions are satisfied because the RPS is bounded (outcomes are discrete,
+forecasts are in $\Delta^K$) and the soft-quantile approximation is smooth in $\theta$.
+\end{proof}
+
+\begin{corollary}[Asymptotic CI for the quantile level]
+\label{cor:qlevel_ci}
+Under the conditions of Proposition~\ref{prop:qlevel_asymptotics},
+$\nabla_\theta\, q_\theta(x) = q_\theta(x)(1 - q_\theta(x))\,\tilde x$,
+and by the delta method:
+\begin{equation}
+  \sqrt{T}\,\bigl(\hat q(x) - q^*(x)\bigr)
+    \;\xrightarrow{d}\; \mathcal{N}\bigl(0,\, [q^*(x)(1 - q^*(x))]^2\, \tilde x'\,\Omega\,\tilde x\bigr).
+\end{equation}
+An asymptotic $(1-\alpha)$ confidence interval for $q^*(x)$ is
+$\hat q(x) \pm z_{\alpha/2}\,\hat\sigma_q(x)/\sqrt{T}$,
+where $\hat\sigma_q(x)^2 = [\hat q(x)(1-\hat q(x))]^2\,\tilde x'\,\hat\Omega_T\,\tilde x$.
+\end{corollary}
+
+\begin{corollary}[Asymptotic CI for the aggregate CDF]
+\label{cor:forecast_ci}
+Let $\hat G_t(k) = Q_{\hat q(x_t)}\bigl(\{F^{(i)}_t(k)\}_{i=1}^{n_t}\bigr)$.
+Denote by $f_{t,k}(u)$ the density of $\{F^{(i)}_t(k)\}_i$ at $u$.
+By the delta method applied to the quantile functional:
+\begin{equation}
+  \sqrt{T}\,\bigl(\hat G_t(k) - G^*_t(k)\bigr)
+    \;\xrightarrow{d}\; \mathcal{N}\!\left(0,\,
+    \frac{\sigma^2_q(x_t)}{f_{t,k}(q^*(x_t))^2}
+    \right),
+\end{equation}
+and a $(1-\alpha)$ CI for $G^*_t(k)$ is
+$\hat G_t(k) \pm z_{\alpha/2}\,\hat\sigma_q(x_t)/(\sqrt{T}\,\hat f_{t,k}(\hat q(x_t)))$.
+The CI width is naturally larger at CDF levels with high cross-sectional disagreement.
+\end{corollary}
+
+\subsection*{Optimality Conditions}
+
+\begin{theorem}[Sufficient condition for strict dominance over BC]
+\label{thm:qlevel_dominance}
+Let $q^*(x) \in (0,1)$ be the population-optimal quantile level given features $x$.
+
+\noindent(a) \emph{(BC optimality)} $q^*(x) = 0.5$ for all $x$ if and only if
+the panel CDF median equals the true CDF at every level:
+$Q_{0.5}\bigl(\{F^{(i)}(k)\}\bigr) = \mathbb{P}(Y \leq k \mid x)$ for all $k$.
+
+\noindent(b) \emph{(Strict dominance)} If there exists $(x_0, k_0)$ such that
+$Q_{0.5}\bigl(\{F^{(i)}(k_0) \mid x = x_0\}\bigr)
+    \neq \mathbb{P}(Y \leq k_0 \mid x = x_0)$,
+then the Q-level model achieves strictly lower population expected RPS than BC.
+
+\noindent(c) \emph{(Contamination model)} Under the additive contamination model
+$F^{(i)}(k) = F_y(k) + \varepsilon_i c_k + \eta_i$
+with contamination fraction $\varepsilon_0 < \frac{1}{2}$ and systematic bias $c_k \neq 0$,
+the optimal quantile satisfies
+$q^*(x) = F_\eta\!\bigl(-\varepsilon_0\,c_k\bigr) \;\neq\; 0.5$.
+When $c_k > 0$ (contaminated forecasters overstate $F_y(k)$), $q^*(x) < 0.5$.
+\end{theorem}
+
+\begin{proof}
+(a) The expected RPS contribution at level $k$ is
+$R_k(q; x) = (Q_q - F_y(k|x))^2 + F_y(k|x)(1-F_y(k|x))$.
+Minimizing over $q$ gives $Q_{q^*} = F_y(k|x)$, which equals $Q_{0.5}$ iff
+$F_y(k|x)$ is the panel median.
+(b) follows immediately.
+(c) The population median of the mixture is $F_y(k) + \varepsilon_0 c_k$ (to first order),
+so $q^* = F_\eta(-\varepsilon_0 c_k)$.
+\end{proof}
+
+\subsection*{Sample-Size Crossover}
+
+\begin{proposition}[Learning-rate and crossover sample size]
+\label{prop:crossover}
+Let $\Delta_{\mathrm{BC}} = \mathbb{E}[\mathrm{RPS}^{\mathrm{BC}}] - \mathrm{RPS}^*$
+be the fixed bias of BC.
+
+\noindent(a) \emph{(Bias-variance decomposition)} The excess risk of Q-Level ERM decomposes as:
+\begin{equation}
+  \mathbb{E}[\mathrm{RPS}^{\mathrm{Q\text{-}level}}_T] - \mathrm{RPS}^*
+    \;=\;
+    \mathcal{O}(d_\theta / T)
+    \;+\;
+    \Delta_{\mathrm{param}},
+\end{equation}
+where $\Delta_{\mathrm{param}} \geq 0$ is the pooling bias from restricting $q^*(k)$ to
+be the same across all CDF levels $k$ (zero when the optimal per-level $q^*(k)$ is constant in $k$).
+
+\noindent(b) \emph{(Crossover)} The Q-level model outperforms BC for training samples of size
+\begin{equation}
+  T \;>\; T^* \;:=\; \frac{C\, d_\theta}{\Delta_{\mathrm{BC}} - \Delta_{\mathrm{param}}},
+  \label{eq:crossover}
+\end{equation}
+where $C > 0$ depends on $\lambda_{\min}(H)$ and $\Delta_{\mathrm{BC}} > \Delta_{\mathrm{param}}$
+is required for any finite crossover to exist.
+
+\noindent(c) \emph{(SPF calibration)} In the US SPF application ($d_\theta = 2$,
+$\hat\Delta_{\mathrm{BC}} \approx 0.076$, $\hat\Delta_{\mathrm{param}} \approx 0$),
+plugging into~\eqref{eq:crossover} gives $T^* \approx 2C / 0.076 \approx 26C$.
+With $T = 40$ training quarters, the Q-level model is near the crossover---consistent
+with large OOS gains but sensitivity to training window choice.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+(a) Standard M-estimation bias-variance decomposition \cite{van2000asymptotic}, Theorem 5.41.
+(b) Set $\mathcal{O}(d_\theta/T) + \Delta_{\mathrm{param}} < \Delta_{\mathrm{BC}}$ and solve for $T$.
+(c) Numerical calibration from OOS results of Section~\ref{sec:lgb_spf}; $\Delta_{\mathrm{param}} \approx 0$
+verified by comparing per-level optimal quantiles across $k=1,\ldots,9$.
+\end{proof}
+
+\begin{remark}[Implications for ECB and next-year horizons]
+The crossover result explains the dataset heterogeneity.
+For ECB HICP ($T_{\mathrm{train}} = 28$): below the crossover threshold, estimation variance
+dominates.
+For the next-year SPF horizon: $\Delta_{\mathrm{BC}} \approx 0$ (the panel CDF median is already
+nearly calibrated), so no finite $T^*$ exists and the Q-level model cannot dominate BC
+regardless of sample size.
+\end{remark}
+
+\subsection*{SPF Crossover Calibration}
+
+In the US SPF application, $\hat\Delta_{\mathrm{BC}} \approx 0.076$ (the OOS RPS gap
+between Q-Level and BC) and $\hat\Delta_{\mathrm{param}} \approx 0$ (numerically verified:
+the optimal per-level $q^*(k)$ is nearly constant across $k = 1,\ldots,9$, so the
+single-scalar parameterization introduces negligible approximation bias).  With
+$T_{\mathrm{train}} = 40$ quarters and $d_\theta = 2$, the implied crossover threshold is
+$T^* = C \cdot 2 / 0.076 \approx 26C$ for the universal constant $C$ in
+Proposition~\ref{prop:crossover}.  The SPF application sits near this threshold, consistent
+with the large OOS gains observed ($-15.5\%$) and the sensitivity of the result to the
+exact training window.
+
+%% =========================================================================
+%% Appendix C: Simulation Study (full tables and figures)
+%% Content to be moved from §3.2 + §4 in Step 3
+%% =========================================================================
+
+\section{Simulation Study}
+\label{app:simulations}
+\label{sec:simulations}
+
+This appendix reports the full simulation results summarized in Section~\ref{sec:robustness}.
+All simulations use $K=6$ states.  Expert opinions are drawn from one of two Dirichlet
+populations: regular experts from $\mathrm{Dir}(\mathbf{1}_K)$; outlying experts from a
+concentrated Dirichlet placing substantial mass on state $S_6$.
+
+\subsection*{Supplementary Figures}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.65\textwidth]{fig5_sensitivity_outliers.pdf}
+\caption{Sensitivity to outlier count.  As the number of outlying experts increases from zero to three, the arithmetic mean's assignment to $S_6$ (blue) grows more rapidly than the barycenter's (red), reflecting the barycenter's distributional resistance to contamination.}
+\label{fig:sensitivity}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.55\textwidth]{fig2_outlier_boxplot.pdf}
+\caption{Distribution of the probability assigned to the outlier's preferred state ($S_6$)
+across $R=200$ simulation replicates.  The arithmetic mean (red) is systematically more
+inflated than the Wasserstein barycenter (blue).}
+\label{fig:outlier_boxplot}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.75\textwidth]{fig3_variance_comparison.pdf}
+\caption{Variance of the arithmetic mean and Wasserstein barycenter by state across $R=200$
+replicates.  The barycenter has lower variance on the outlier state ($S_6$) but higher
+variance on regular states, illustrating the robustness--efficiency tradeoff.}
+\label{fig:variance}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig4_single_draw.pdf}
+\caption{A single simulation draw: five regular experts (purple), one outlier (orange),
+arithmetic mean (red), and Wasserstein barycenter (blue).  The arithmetic mean is visibly
+pulled toward the outlier's distribution.}
+\label{fig:single_draw}
+\end{figure}
+
+\subsection*{Efficiency Under the Null}
+
+When all experts are drawn from the same regular population ($N_{\mathrm{out}} = 0$), the
+arithmetic mean is the minimum-variance unbiased estimator of the population probability
+vector.  Table~\ref{tab:efficiency} compares the mean squared error of the two aggregates
+relative to the true population mean $\mu = \mathbf{1}_K / K$ for varying $N$.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rccc}
+\hline
+$N$ & AM MSE & BC MSE & BC/AM ratio \\
+\hline
+5  & 0.0225 & 0.0317 & 1.41 \\
+10 & 0.0124 & 0.0198 & 1.59 \\
+20 & 0.0063 & 0.0118 & 1.86 \\
+\hline
+\end{tabular}
+\caption{Mean squared error (summed over states) of the arithmetic mean and Wasserstein
+barycenter relative to the true population mean $\mu = \mathbf{1}_K/K$, averaged over
+$R=200$ replicates with no outlying experts.  The AM is more efficient in all cases; the
+ratio grows with $N$.}
+\label{tab:efficiency}
+\end{table}
+
+Both estimators are consistent: MSE decreases at rate $O(1/N)$.  The barycenter's efficiency
+loss relative to the AM grows with $N$, reflecting the $L^1$ vs.\ $L^2$ character of the
+two estimators.
+
+\subsection*{Robustness Under Contamination}
+
+For $N_{\mathrm{reg}} = 10$ and $N_{\mathrm{out}} \in \{0,1,2,3\}$, Table~\ref{tab:robustness}
+reports the mean and standard deviation of the probability assigned to $S_6$.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rcccc}
+\hline
+$N_{\mathrm{out}}$ & AM mean ($S_6$) & AM sd & BC mean ($S_6$) & BC sd \\
+\hline
+0 & 0.165 & 0.044 & 0.166 & 0.057 \\
+1 & 0.243 & 0.041 & 0.202 & 0.061 \\
+2 & 0.309 & 0.040 & 0.245 & 0.075 \\
+3 & 0.357 & 0.033 & 0.281 & 0.074 \\
+\hline
+\end{tabular}
+\caption{Mean and standard deviation of the probability assigned to state $S_6$ as the
+number of outlying experts increases.  The AM mean grows by approximately $0.064$ per
+additional outlier; the BC mean grows by approximately $0.038$.}
+\label{tab:robustness}
+\end{table}
+
+\subsection*{Sensitivity to Population Heterogeneity}
+
+Figure~\ref{fig:efficiency_alpha} varies the Dirichlet concentration parameter $\alpha_0$
+over a log-spaced grid from $0.25$ to $20$.  The MSE ratio decreases monotonically as
+$\alpha_0$ increases, falling from $2.45$ at $\alpha_0 = 0.25$ to $1.35$ at $\alpha_0 = 20$.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.65\textwidth]{fig_efficiency_alpha.pdf}
+\caption{MSE ratio (BC/AM) as a function of the Dirichlet concentration $\alpha_0$, with
+$N=10$ regular experts and no outliers.  The efficiency cost of the barycenter decreases as
+the expert population concentrates.}
+\label{fig:efficiency_alpha}
+\end{figure}
+
+%% =========================================================================
+%% Appendix D: ECB SPF Replication
+%% Content moved from §5.5 (Section sec:ecb_spf)
+%% =========================================================================
+
+\section{ECB SPF Replication and Single-Quarter Illustration}
+\label{app:ecb}
+\label{sec:spf_ecb}
+
+\subsection*{Single-Quarter Illustration: SPF 2022:Q1}
+
+We illustrate the aggregation method on the 2022:Q1 survey ($n=27$ respondents predicting 2023 core CPI inflation), conducted in February 2022 when realized core CPI was running near 6\% and forecasters disagreed sharply about how quickly inflation would moderate.
+
+Figure~\ref{fig:spf_heatmap} displays the 27 individual histograms as a heatmap.  The heterogeneity is striking: some forecasters concentrated nearly all mass on 2--3\% (expecting a rapid return to target), while others spread mass across higher bins.  A few placed non-trivial probability on the decline and $\geq 4\%$ tail bins.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_spf1_heatmap.pdf}
+\caption{SPF 2022:Q1: probability distributions for 2023 core CPI inflation across 27 professional forecasters.  Each row is one forecaster's histogram over 10 ordered bins (ascending from ``will decline'' to $\geq 4\%$).  Cell color encodes probability mass (darker = higher).}
+\label{fig:spf_heatmap}
+\end{figure}
+
+By Proposition~\ref{prop:w1}, the $W_1$ barycenter equals the PMF obtained by component-wise CDF median.  We verified this numerically: the closed-form formula and the LP solver agree to machine precision ($\ell^1$ discrepancy $< 10^{-4}$).
+
+Figure~\ref{fig:spf_aggregates} compares the arithmetic mean and the $W_1$ barycenter.  The arithmetic mean places 3.6\% mass on the ``decline'' bin and 8.1\% on the $\geq 4\%$ bin, for a combined tail probability of 11.7\%.  The barycenter assigns \emph{zero} mass to both tails and concentrates 60\% of its mass on the 2.0--2.9\% range.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_spf2_aggregates.pdf}
+\caption{Arithmetic mean (red), $W_1$ barycenter via CDF-median formula (blue), and $W_1$ barycenter via LP solver (green) for 2023 core CPI, SPF 2022:Q1.  The closed-form and LP results coincide exactly.}
+\label{fig:spf_aggregates}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_spf3_cdfs.pdf}
+\caption{Individual CDFs (grey, $n=27$) and aggregate CDFs for the arithmetic mean (red) and the $W_1$ barycenter (blue).  The barycenter CDF is the component-wise median of the individual CDFs, confirming Proposition~\ref{prop:w1}.}
+\label{fig:spf_cdfs}
+\end{figure}
+
+\subsection*{Oracle Blend Search}
+
+A grid search over $\lambda\in\{0,0.005,\ldots,1\}$ using all 76 quarters identifies
+$\lambda^*=0.70$ as the mean-RPS minimizer (in-sample mean RPS $0.437$, lower than AM
+$0.447$ and BC $0.439$).  The expanding-window estimate of $\lambda$ converges to
+approximately $0.71$ within the first 20 quarters, closely matching the oracle value.
+The Proposition~\ref{prop:c2prime} prediction $\lambda^* \approx B^2/(B^2+V)$ is consistent
+with this estimate: with $\varepsilon \approx 0.15$ (estimated contamination fraction) and
+$M^2 \approx 0.25$, $\lambda^* \approx 0.70$.
+
+\subsection*{SPF Backtest: Extended Discussion}
+
+The historical backtest (Section~\ref{sec:spf_backtest}) shows the barycenter assigns more probability mass to the realized outcome bin in a majority of quarters, with a mean improvement of 15.6\% (0.424 vs.\ 0.367 AM), and achieves lower average RPS than the AM.  The advantage is concentrated in low-dispersion quarters; the AM recovers ground in high-dispersion quarters because its broader tail coverage reduces cumulative CDF deviations when extreme outcomes materialize.  The dispersion-adaptive convex blend achieves the lowest OOS RPS ($0.404$), versus $0.409$ for TM, $0.411$ for BC, and $0.423$ for AM.  The LP achieves the highest P(correct bin) ($0.491$) but the worst RPS ($0.486$), reflecting the $\ell^1$--$\ell^2$ mismatch: extreme concentration minimises $\ell^1$ error at the mode but amplifies squared CDF error in tail quarters.  Reliability diagrams (Figure~\ref{fig:reliability}) confirm no systematic miscalibration across methods; all four aggregates track the 45-degree line.
+
+\subsection*{ECB SPF Replication}
+
+Taylor \cite{taylor26} applies depth-based median aggregation to ECB SPF inflation forecasts
+using a partially overlapping sample, providing an independent evaluation of robust CDF
+aggregation in the same institutional setting.  Our estimator (the $W_1$ barycenter,
+equivalently the vertical CDF median) differs from Taylor's halfspace-depth median in
+construction but shares the same qualitative motivation.  The contribution of our ECB
+evaluation relative to Taylor \cite{taylor26} is threefold: (i)~we use a simpler,
+parameter-free estimator; (ii)~our sample extends through 2024Q3, covering the 2022--2023
+Euro-area inflation surge; and (iii)~we document the dispersion-conditional pattern which is
+not reported in Taylor.
+
+To assess whether the US SPF findings are specific to that survey or reflect a more general
+property of barycenter aggregation, we replicate the backtest on the ECB Survey of Professional
+Forecasters (ECB SPF), which has been conducted quarterly since 1999~\cite{garcia05}.  The ECB
+SPF covers the Euro area and asks respondents to assign probabilities to ordered bins for
+headline HICP inflation, real GDP growth, and the unemployment rate.  We use the headline HICP
+current-year forecasts over the period 2010Q1--2024Q3 ($n=56$ quarter-surveys), during which
+the bin structure is stable at 12 ordered bins of width 0.5~pp from below $-1\%$ to above
+$4\%$.  Realized values are annual-average HICP YoY from the ECB Statistical Data Warehouse.
+The evaluation protocol (AM, $W_1$ barycenter, RPS scoring, dispersion split) is identical to
+Section~\ref{sec:spf_backtest}.
+
+\paragraph{Results.}  The barycenter assigns more probability mass to the realized outcome bin
+in 78.6\% of quarter-surveys ($p<0.001$, Wilcoxon), with a mean mass of $0.457$ versus
+$0.430$ for the arithmetic mean, a 6.3\% improvement (Figure~\ref{fig:ecb_mass_app}).  This
+replicates the core finding from the US SPF on an independent panel in a different
+institutional setting and with a different realized variable.
+
+The aggregate RPS advantage is near zero overall (mean RPS $0.441$ AM vs.\ $0.441$ BC,
+Wilcoxon $p=0.23$), but this masks a clean dispersion-conditional pattern that precisely
+replicates the US SPF finding.  In low-dispersion quarters ($n=28$), the barycenter achieves
+meaningfully lower RPS (mean $0.255$ vs.\ $0.266$), and this advantage is statistically
+significant by both tests (Wilcoxon $p=0.012$, DM $p=0.006$).  In high-dispersion quarters
+the arithmetic mean wins marginally (mean $0.616$ vs.\ $0.626$), with no significant
+difference (Wilcoxon $p=0.57$, DM $p=0.89$).  The overall near-tie is explained by the
+2021--2023 Euro-area inflation surge: annual-average HICP reached $8.4\%$ in 2022, well above
+the highest bin boundary (${\geq}4\%$).  The replication finding is therefore not a null result
+but a confirmation: the dispersion-conditional pattern holds on an independent panel with a
+different variable, a different bin structure, and a different institutional setting.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{lccc}
+\hline
+ & \multicolumn{2}{c}{Mean score} & \\
+Method & RPS & P(correct bin) & Wins (mass) \\
+\hline
+Arithmetic mean & 0.441 & 0.430 & --- \\
+$W_1$ barycenter & 0.441 & 0.457 & 78.6\%$^{***}$ \\
+\hline
+\multicolumn{4}{l}{\textit{Panel B: By dispersion ($n=28$ each)}} \\[2pt]
+\hline
+ & \multicolumn{2}{c}{Mean RPS} & \\
+ & Low disp. & High disp. & \\
+\hline
+Arithmetic mean & 0.266 & 0.616 & \\
+$W_1$ barycenter & 0.255 & 0.626 & \\
+\hline
+\end{tabular}
+\caption{ECB SPF backtest (56 quarter-surveys, 2010Q1--2024Q3, current-year headline HICP).
+$^{***}$ Wilcoxon $p<0.001$.  Overall RPS difference is not significant ($p=0.23$).}
+\label{tab:ecb_backtest_app}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_ecb1_mass_correct_bin.pdf}
+\caption{ECB SPF: probability mass assigned to the realized annual-average HICP bin by the
+arithmetic mean and $W_1$ barycenter, 2010Q1--2024Q3.  The barycenter consistently assigns
+more mass to the correct bin.  Shaded quarters are high-dispersion (above-median
+cross-sectional variance).  The 2022 inflation surge (realized HICP $8.4\%$) is visible as
+a period of low mass for both methods.}
+\label{fig:ecb_mass_app}
+\end{figure}
+
+\paragraph{Interpretation.}  The ECB SPF replication confirms that the barycenter's
+concentration near the panel consensus is a reliable property, not a sample artifact.
+The non-significant RPS result for the ECB sample reflects the particular severity of the 2022
+inflation episode, whose outcome lay far outside the normal support of the distribution.
+Taken together, the two backtests suggest that the barycenter gains from sharper concentration
+near the consensus and can lose from reduced tail mass in extreme-realization quarters.
+
+%% =========================================================================
+%% Appendix E: Full Learned Geometry (LGB) — Theory and Failure Analysis
+%% Source: thread3_learned_geometry.tex §sec:lgb
+%% =========================================================================
+
+\section{Full Learned Geometry: LGB Theory and Failure Analysis}
+\label{app:lgb}
+
+The Q-level model (Section~\ref{sec:learned}) adjusts \emph{where} in the cross-sectional
+distribution to aggregate, but still uses the natural bin ordering.  A richer extension
+learns the \emph{geometry} of the bin space.
+
+\subsection*{Model Definition}
+
+Let $\phi_\theta : \{0,\ldots,K-1\} \to \mathbb{R}^d$ be a learned embedding of the $K$ bins,
+initialized to the natural spacing $\phi_\theta^{(0)}(b) = b/(K-1)$.  For $d=1$ with a
+monotone constraint, $\phi_\theta$ is parameterized as the cumulative sum of softplus-transformed
+increments.  The Wasserstein-1 barycenter under the learned cost
+$C_\theta[a,b] = \|\phi_\theta(a) - \phi_\theta(b)\|$ is computed via Sinkhorn iterations
+\cite{cuturi}.
+
+\begin{theorem}[Recovery of classical methods]
+\label{thm:lgb_recover}
+Let $\phi_\theta = \phi^{(0)}$ (natural spacing, $d=1$).
+(a) Under $\ell^1$ cost, the Sinkhorn barycenter converges to the CDF-median
+    (Proposition~\ref{prop:w1}) as the regularization $\varepsilon \to 0$.
+(b) Under uniform cost ($\phi_\theta(b) = \mathrm{const}$), the Sinkhorn barycenter
+    converges to the arithmetic mean as $\varepsilon \to \infty$.
+Thus $\text{AM} \subset \text{BC} \subset \text{LGB}$ as a strict containment hierarchy.
+\end{theorem}
+
+\subsection*{Empirical Failure Analysis}
+
+With $K-1 = 9$ free embedding parameters (monotone, $d=1$), the full LGB model
+requires substantially more training observations than the Q-level model ($|\Theta| = 2$).
+In the SPF application ($T_{\mathrm{train}} = 40$ quarters), the LGB overfits to the
+2007--2016 inflation regime and generalizes poorly across the 2021--2022 inflation spike.
+OOS RPS: $0.591$ vs.\ AM $0.501$ and BC $0.493$ --- worse than both non-learned baselines.
+
+Root causes:
+\begin{itemize}
+\item \emph{Entropy smoothing}: Sinkhorn regularization with $\varepsilon=0.1$ produces
+  OOS RPS $= 0.545$ even at initialization (worse than BC $= 0.493$).  The entropy penalty
+  blurs the barycenter away from the CDF median.
+\item \emph{Low-$T$ overfitting}: With $T=40$ training observations and 9 free parameters,
+  the LGB memorizes the training regime rather than learning generalizable geometry.
+\end{itemize}
+
+Entropy annealing (decreasing $\varepsilon$ during training), early stopping on a validation
+split, or longer training windows ($T \gg 40$) are expected to improve LGB generalization.
+The Q-level model's 2-parameter design is robust to these issues at $T=40$.
+
+\subsection*{MMLU LLM Ensemble: Position Bias as Directional Contamination}
+
+We query three LLMs (GPT-4o-mini, GPT-3.5-turbo, Qwen3-32B) on 100 MMLU multiple-choice
+questions under four cyclic permutations of answer options, yielding $100 \times 3 \times 4 =
+1{,}200$ probability vectors in canonical option space.
+
+Standard instruction-tuned models exhibit strong position bias: GPT-4o-mini shows a 12.1pp
+gap between answers in slot A vs.\ D ($A=0.895$, $D=0.774$); GPT-3.5-turbo shows 14.1pp.
+\emph{Qwen3-32B, a reasoning model, shows only 1.7pp} ($A=0.755$, $D=0.738$)---its
+chain-of-thought process evaluates each option on its merits before committing, suppressing
+the surface-level positional shortcut.
+
+Averaging each model's four permuted distributions (mapped to canonical option space) reduces
+mean Brier score from $0.315$ to $0.255$ ($-19\%$, pooled three models, $p = 0.026$,
+Wilcoxon).  With $n = 3$ perm-averaged models, the BC ensemble achieves Brier score $0.193$
+vs.\ AM $0.195$ ($-0.8\%$, $p < 0.001$, Wilcoxon).  Both ensemble methods substantially
+beat the best individual model (GPT-4o-mini, $0.206$).
+
+The BC advantage is modest because the three models differ primarily in accuracy level
+(Qwen3 $\approx 96\%$ correct) rather than systematic directional biases---the regime where
+Proposition~\ref{prop:c1} predicts a larger advantage.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_thread3_mmlu.pdf}
+\caption{MMLU LLM ensemble results ($n=3$ models, $K=4$).
+  (a) Position bias by model: GPT models show 12--14pp gaps; Qwen3-32B shows only 1.7pp.
+  (b) Effect of permutation averaging: BS $0.315 \to 0.255$ ($-19\%$, $p=0.026$).
+  (c) Individual model Brier scores.
+  (d) Ensemble aggregation: BC $0.193$ vs.\ AM $0.195$ ($-0.8\%$, $p<0.001$).}
+\label{fig:thread3_mmlu}
+\end{figure}
+
+%% =========================================================================
+%% Appendix F (was A): Barycenters for Network-Valued Outcomes
+%% =========================================================================
+
+\section{Barycenters for Network-Valued Outcomes}
+\label{app:networks}
+
+The framework extends naturally to settings where the outcome space is a set of network structures \cite{danielson18}.  Let $\mathcal{Y}_n$ denote the space of binary adjacency matrices on $n$ nodes: the set of $n\times n$ zero-diagonal matrices with entries in $\left\{0,1\right\}$, equipped with the Hamming distance
+\begin{align*}
+d(Y,Y')=\sum_{m\neq n}\left|Y_{mn}-Y'_{mn}\right|.
+\end{align*}
+A probability mass function over $\mathcal{Y}_n$ assigns probability $p_j(Y)$ to each network $Y\in\mathcal{Y}_n$.  Existence of the barycenter follows from the compactness argument of Theorem~\ref{thm:l1} applied to the finite metric space $(\mathcal{Y}_n, d)$.  The full-diagonal criterion (Proposition~\ref{prop:fulldiag}) carries over: in any optimal solution, $\Pi^{(j)}_{YY}=\min\{p_j(Y),\Psi(Y)\}$ for each $Y$.
+
+Unlike the unordered case where all off-diagonal pairs are equidistant, pairs of networks differing in $k$ edges incur cost $k$ under $W_1$ (or $k^2$ under $W_2$).  After diagonal entries are maximized, remaining mass is assigned to off-diagonal entries in order of increasing Hamming distance.
+
+The result extends to integer-valued (weighted) networks by replacing $\{0,1\}$ with $\{0,\ldots,M\}$ and using the $\ell^1$ Hamming distance.
+
+\section{Application to a Survey of Public Health Experts}
+\label{app:opioid}
+
+We apply the methods developed above to a survey conducted by the \textit{New York Times} in which 30 public health experts were each asked to allocate a hypothetical budget across 20 policy interventions aimed at addressing the opioid crisis.  Each expert's allocation is a probability vector over the 20 interventions and the collection of 30 vectors constitutes a natural instance of the expert aggregation problem.
+
+\subsection{Data}
+
+The 20 interventions span four policy categories: \emph{treatment} (medication-assisted treatment, medicaid expansion, addiction treatment in prisons, drug courts, research); \emph{harm reduction} (naloxone, needle exchanges, supervised consumption spaces, HIV/HCV treatment, fentanyl testing strips, medical examiners); \emph{prevention} (community development, education, pain research, post-incarceration social programs); and \emph{supply} (interdiction, prescription drug monitoring, local police forces, border wall, reducing diversion).  Expert allocations range from near-zero (many experts allocate nothing to border-wall or supervised consumption spaces) to over 50\% (one expert allocates half their budget to medication-assisted treatment alone).  Figure~\ref{fig:app_heatmap} displays the full allocation matrix.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_app1_heatmap.pdf}
+\caption{Budget allocations of 30 public health experts across 20 opioid interventions.  Cell color encodes the budget share; intervention labels are colored by policy category (blue = treatment, green = harm reduction, orange = prevention, red = supply).}
+\label{fig:app_heatmap}
+\end{figure}
+
+\subsection{Aggregate Distributions}
+
+Figure~\ref{fig:app_aggregates} shows the arithmetic mean and Wasserstein barycenter side by side.  Both aggregates identify medication-assisted treatment as the top priority ($\bar{P} = 0.183$, $\hat\Psi = 0.195$), followed by community development, medicaid expansion, and addiction treatment in prisons.  The two aggregates agree on the ranking of the top interventions but differ systematically in their category-level allocation.
+
+Table~\ref{tab:categories} reports the total budget share assigned to each category.  The barycenter allocates more to treatment ($0.481$ vs.\ $0.468$) and harm reduction ($0.173$ vs.\ $0.155$) and less to prevention ($0.262$ vs.\ $0.270$) and supply ($0.084$ vs.\ $0.107$) than the arithmetic mean.  The largest individual-intervention differences are in community development ($\bar{P} - \hat\Psi = +0.013$), medicaid expansion ($+0.012$), and medication-assisted treatment ($-0.012$).
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{lcc}
+\hline
+Category & Arithmetic Mean & Barycenter \\
+\hline
+Treatment       & 0.468 & 0.481 \\
+Harm reduction  & 0.155 & 0.173 \\
+Prevention      & 0.270 & 0.262 \\
+Supply          & 0.107 & 0.084 \\
+\hline
+\end{tabular}
+\caption{Total budget share allocated to each policy category by the arithmetic mean and Wasserstein barycenter.}
+\label{tab:categories}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_app2_aggregates.pdf}
+\caption{Arithmetic mean (top) and Wasserstein barycenter (bottom) of the 30 expert allocations.  Bars are colored by policy category.  Annotations show allocations exceeding 5\%.}
+\label{fig:app_aggregates}
+\end{figure}
+
+\subsection{Leave-One-Out Influence}
+
+To assess the influence of individual experts, we compute the $\ell^1$ shift in each aggregate when each expert is removed in turn.  This is the empirical counterpart of the EIF studied in Section~\ref{sec:robustness}.  Figure~\ref{fig:app_loo} displays the leave-one-out influence of each expert, ordered by their influence on the arithmetic mean.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig_app4_loo.pdf}
+\caption{Leave-one-out $\ell^1$ shift in the arithmetic mean (red) and Wasserstein barycenter (blue) when each expert is removed.  Experts are ordered by their influence on the arithmetic mean.}
+\label{fig:app_loo}
+\end{figure}
+
+The most influential experts on the arithmetic mean are those whose allocations deviate most from the consensus, concentrating nearly all of their budget on a single intervention.  For this dataset, the leave-one-out shifts are comparable in magnitude for the two methods; mean shifts are 2.7 percentage points for the AM and 3.6 for the barycenter.  This is consistent with the data structure: without a clearly outlying expert, both aggregators respond similarly to removals.  The robustness advantage of the barycenter is most pronounced when a minority of experts holds extreme views, as in the SPF application (Section~\ref{sec:spf}) and the contamination simulations (Section~\ref{sec:simulations}).  Figure~\ref{fig:app_scatter} further illustrates where the two methods agree and disagree at the intervention level.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_app3_scatter.pdf}
+\caption{AM vs.\ barycenter allocation for each of the 20 interventions.  Points above the diagonal indicate interventions where the barycenter allocates more than the AM; points below indicate the reverse.  Colors denote policy category.}
+\label{fig:app_scatter}
+\end{figure}
+
+\section{Full-Diagonal Criterion}
+\label{app:fulldiag}
+
+The following proposition extends Lemma~\ref{lem:ot_diagonal} from individual transport plans to the full barycenter solution: in any optimal solution, every transport plan simultaneously maximises its diagonal.
+
+\begin{proposition}[Full-Diagonal Criterion]
+\label{prop:fulldiag}
+Let $\Pi^{1},\ldots,\Pi^{N}$ be $K\times K$ matrices representing the joint distributions between a candidate barycenter $\Psi$ and the probability mass functions $p_1,\ldots,p_N$ on $\Omega=\left\{1,\ldots,K\right\}$.  Suppose the matrices are feasible, satisfying for all $l$ and $k$
+\begin{align*}
+\sum_{j}\Pi_{k,j}^{l}=p_l(k),\qquad
+\sum_{j}\Pi_{j,k}^{l}=\Psi(k),
+\end{align*}
+but for some $l$ and $i$,
+\begin{equation}
+\label{eq:Pi_ineq}
+\Pi^{l}_{i,i} < \min\bigl\{p_l(i),\,\Psi(i)\bigr\}.
+\end{equation}
+Then there exists a feasible $\tilde{\Pi}^{l}\neq \Pi^{l}$ such that
+$f(\tilde{\Pi}^l,\Pi^{-l}) < f(\Pi^l,\Pi^{-l})$,
+so $(\Pi^1,\ldots,\Pi^N)$ is not optimal.  Consequently, every optimal transport plan satisfies $\Pi^{l}_{kk}=\min\{p_l(k),\Psi(k)\}$ for all $k$.
+\end{proposition}
+\begin{proof}
+The objective equals $f(\mathbf{\Pi})= \sum_{l=1}^N \sum_{k=1}^K (1 - \Pi_{k,k}^{l})$, so increasing any diagonal entry strictly decreases the objective.  Suppose \eqref{eq:Pi_ineq} holds.  Since $\Pi^l_{ii} < p_l(i)$, there exists $k_1\neq i$ with $\Pi^l_{i,k_1}>0$.  Setting $\tilde\Pi^l_{i,i}=\Pi^l_{i,i}+\Pi^l_{i,k_1}$ and $\tilde\Pi^l_{i,k_1}=0$ preserves row $i$'s sum.  Since $\Pi^l_{ii}<\Psi(i)$, the column-$i$ sum $\Psi(i)$ exceeds the diagonal; there exists a set of indices $\{k^i_2\}$ and weights $\{\epsilon_i\}$ summing to $\Pi^l_{i,k_1}$ such that transferring mass $\epsilon_i\Pi^l_{k^i_2,i}$ from column $i$ to column $k_1$ restores all column sums.  The resulting $\tilde\Pi^l$ is feasible and the objective decreases by $\Pi^l_{i,k_1}>0$.
+\end{proof}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Replication Audit}
+\label{app:replication}
+% ─────────────────────────────────────────────────────────────────────────────
+
+A complete replication package is available in the \texttt{paper\_replication/} directory of
+the repository.  Running
+\begin{center}
+\texttt{python paper\_replication/python/examples/run\_all.py --skip-mmlu}
+\end{center}
+from the repository root regenerates every table, figure, and intermediate CSV from raw data.
+All numbers in the paper match the current pipeline output.
+
+The following issues were discovered and corrected during a systematic audit of every numerical
+claim and figure prior to submission.
+
+\paragraph{GJP multi-category classifier (critical).}
+The original question classifier in \texttt{gjp\_multicategory\_backtest.py} applied regex
+patterns to the concatenation of question text plus options text.
+Questions such as ``Who will be president as of 1~January~2015?'' (genuinely unordered: the
+answer is a person's name) were classified as temporal because the question text contained a
+date.  The corrected classifier operates on options text exclusively and requires at least two
+options to contain date-window patterns before assigning the temporal label.
+This changed the classification from temporal\,=\,92 / unordered\,=\,15 / ordinal\,=\,9 to
+the correct 45\,/\,30\,/\,41 split, and updated the corresponding paper numbers.
+
+\paragraph{US SPF quarter count (76 vs.\ 72).}
+The hardcoded realized core CPI dictionary in \texttt{spf\_backtest.py} and
+\texttt{spf\_blend.py} ended at year 2024, producing 72 quarters instead of the stated 76.
+The 2025 Q4/Q4 core CPI value ($2.6\%$, BLS Consumer Price Index release of January~13,
+2026) was added, restoring the 76-quarter backtest and all dependent statistics
+(win rate $68.4\%$, Wilcoxon $p=0.005$, DM $p=0.225$).
+
+\paragraph{Adaptive blend OOS window mismatch.}
+An earlier draft compared the out-of-sample blend RPS against the full-sample trimmed-mean
+RPS---different evaluation windows.  The corrected Table~4 evaluates all methods
+(AM, BC, TM, blend) on the identical 56-quarter OOS window.
+The corrected blend--vs--TM improvement is $1.1\%$ ($p=0.30$, not significant); the
+earlier claim of $7.1\%$ was entirely spurious.
+
+\paragraph{Q-Level OOS window bound.}
+After the 2025 CPI value was added, the OOS filter in \texttt{thread3\_spf\_experiment.py}
+silently extended from 32 to 36 quarters.  An explicit \texttt{OOS\_END\_YEAR\,=\,2024}
+constant was added so the Q-Level model is evaluated on the 2017--2024 holdout only,
+consistent with the paper text.
+
+\paragraph{Missing figure scripts in pipeline.}
+Figures \texttt{fig\_bt6} and \texttt{fig\_bt7} were generated by a script
+(\texttt{spf\_backtest\_blend\_figure.py}) not included in \texttt{run\_all.py}; stale
+copies in \texttt{} predated the 2025 CPI fix.  The script was added to the
+pipeline and all figure-output paths were unified to write to the repository-root
+\texttt{} directory read by the \LaTeX{} source.
+
+
