@@ -3,7 +3,7 @@
 
 Combining probabilistic forecasts from multiple experts is a central problem in macroeconomics, finance, and public policy.  The Survey of Professional Forecasters (SPF) elicits probability distributions over future inflation and output from panels of professional economists every quarter; these histogram forecasts must be summarized into a single aggregate distribution before informing decisions.  Expert elicitation in public health, climate science, and risk analysis faces the same problem: the data are probability vectors over a finite outcome space, and the goal is a single representative distribution.
 
-The dominant method is the \emph{linear opinion pool}, the arithmetic mean of the individual probability vectors \cite{genest86,ohagan06,timmermann06}.  Its appeal is axiomatic: it is the only combination rule consistent with marginalisation across subsets of outcomes \cite{genest86}.  In well-behaved panels with exchangeable, well-calibrated forecasters it is also asymptotically efficient.  Its practical weakness is sensitivity to heterogeneous or extreme opinions: a single forecaster who assigns 30--50\% probability to a tail scenario shifts the aggregate by $1/N$ of that mass, regardless of how far outside the consensus view that forecaster sits.  The question is not whether to abandon the linear pool, but what geometry should replace it.
+The dominant method is the \emph{linear opinion pool}, the arithmetic mean of the individual probability vectors \cite{genest86,ohagan06,timmermann06}.  Its appeal is axiomatic: it is the only combination rule consistent with marginalization across subsets of outcomes \cite{genest86}.  In well-behaved panels with exchangeable, well-calibrated forecasters it is also asymptotically efficient.  Its practical weakness is sensitivity to heterogeneous or extreme opinions: a single forecaster who assigns 30--50\% probability to a tail scenario shifts the aggregate by $1/N$ of that mass, regardless of how far outside the consensus view that forecaster sits.  The question is not whether to abandon the linear pool, but what geometry should replace it.
 
 The arithmetic mean, trimmed mean, and logarithmic pool are all answers to the question: \emph{which forecasters deserve weight?}  This paper asks a different question: \emph{what is the right geometry for measuring disagreement?}  The arithmetic mean is the Fr\'echet mean under squared Euclidean distance on probability vectors.  The Wasserstein barycenter is the Fr\'echet mean under optimal-transport distance; it matches the geometry of aggregation to the geometry of outcomes.  For ordered outcome spaces with the absolute-value ground cost, the $W_1$ barycenter equals the componentwise CDF-median (equivalently, the vertical Wasserstein-median selection at $\tau = 1/2$ in the sense of \cite{carlier23}).  Choosing a geometry is not a technical detail.  It determines which forecasters are treated as outliers, how robustly the aggregate responds to contamination, and, as we show, how much accuracy can be gained by letting the geometry adapt to the panel.
 
@@ -33,7 +33,7 @@ Trained on 40 quarters (2007--2016), it achieves $\mathbf{-15.5\%}$ OOS RPS on 3
 
 \paragraph{Theory (primary theoretical contribution).}
 Theorem~\ref{thm:l1} shows the $W_1$ objective on \emph{unordered} finite spaces simplifies to a constrained $\ell^1$ problem, enabling $O(n\log n)$ computation, a breakdown point near $\tfrac{1}{2}$, and permutation equivariance.
-Proposition~\ref{prop:c2prime} characterises the regime: $\Delta\mathrm{RPS} = \varepsilon^2 M^2 - \tfrac{\pi/2-1}{n}\sigma^2$ (bias reduction minus efficiency cost), making the barycenter's advantage over AM a testable, quantitative prediction.
+Proposition~\ref{prop:c2prime} characterizes the regime: $\Delta\mathrm{RPS} = \varepsilon^2 M^2 - \tfrac{\pi/2-1}{n}\sigma^2$ (bias reduction minus efficiency cost), making the barycenter's advantage over AM a testable, quantitative prediction.
 
 \paragraph{Empirical validation.}
 GJP reduces mean Brier score 12.8\% (binary) and 16.9\% (multi-category, $p < 0.001$); U.S.\ SPF shows DM $p < 0.001$ in theory-predicted low-dispersion quarters, confirmed on ECB SPF.
@@ -107,7 +107,7 @@ For $p, \Psi \in \Delta_{K-1}$,
 \]
 \end{lemma}
 \begin{proof}
-The transport cost under the indicator distance is $1 - \sum_k \Pi_{kk}$ for any coupling $\Pi \in \Gamma(p,\Psi)$, minimized by maximising $\sum_k \Pi_{kk}$.  Marginal constraints give $\Pi_{kk} \leq \min\{p(k),\Psi(k)\}$, and the plan $\Pi^*_{kk} = \min\{p(k),\Psi(k)\}$ is feasible (residual row and column masses are nonneg\-ative and sum to the same total, so an off-diagonal assignment exists).  Thus $W_{\mathrm{ind}}(p,\Psi) = 1 - \sum_k \min\{p(k),\Psi(k)\}$.  The second equality uses $a - \min(a,b) = \max(a-b,0)$ and $\sum_k(p(k)-\Psi(k)) = 0$ to give $\sum_k\max\{p(k)-\Psi(k),0\} = \tfrac{1}{2}\|p-\Psi\|_1$.
+The transport cost under the indicator distance is $1 - \sum_k \Pi_{kk}$ for any coupling $\Pi \in \Gamma(p,\Psi)$, minimized by maximizing $\sum_k \Pi_{kk}$.  Marginal constraints give $\Pi_{kk} \leq \min\{p(k),\Psi(k)\}$, and the plan $\Pi^*_{kk} = \min\{p(k),\Psi(k)\}$ is feasible (residual row and column masses are nonneg\-ative and sum to the same total, so an off-diagonal assignment exists).  Thus $W_{\mathrm{ind}}(p,\Psi) = 1 - \sum_k \min\{p(k),\Psi(k)\}$.  The second equality uses $a - \min(a,b) = \max(a-b,0)$ and $\sum_k(p(k)-\Psi(k)) = 0$ to give $\sum_k\max\{p(k)-\Psi(k),0\} = \tfrac{1}{2}\|p-\Psi\|_1$.
 \end{proof}
 
 The analogous property for barycenter solutions (that every optimal plan simultaneously satisfies $\Pi^{l}_{kk} = \min\{p_l(k), \Psi(k)\}$) is established in Appendix~\ref{app:fulldiag}.
@@ -157,7 +157,7 @@ For $K=2$, the Wasserstein barycenter under the indicator cost is
 \]
 \end{corollary}
 \begin{proof}
-With $K=2$ the simplex constraint $\Psi(1)+\Psi(2)=1$ reduces the optimisation to a single free variable.  The objective $\sum_l(|p_l(1)-\Psi(1)|+|p_l(2)-\Psi(2)|) = 2\sum_l|p_l(1)-\Psi(1)|$ is minimised by the median of $\{p_l(1)\}$, which automatically lies in $[0,1]$ and hence satisfies the simplex constraint.
+With $K=2$ the simplex constraint $\Psi(1)+\Psi(2)=1$ reduces the optimization to a single free variable.  The objective $\sum_l(|p_l(1)-\Psi(1)|+|p_l(2)-\Psi(2)|) = 2\sum_l|p_l(1)-\Psi(1)|$ is minimized by the median of $\{p_l(1)\}$, which automatically lies in $[0,1]$ and hence satisfies the simplex constraint.
 \end{proof}
 \begin{remark}[Breakdown point]
 The finite-sample replacement breakdown point of the binary barycenter is $(\lfloor N/2\rfloor + 1)/N \approx 50\%$, matching the classical sample median: one must corrupt strictly more than half the panel to drive $\Psi^*(1)$ to an arbitrary value.  Any minority of corrupted opinions, however extreme, leaves $\Psi^*(1)$ unchanged provided the corrupted values do not cross the median rank.  This is a precise statement of robustness: the barycenter is locally constant (Corollary~\ref{cor:local_const} gives the exact margin) and globally stable under minority corruption.  By contrast, the arithmetic mean has breakdown point $1/N$: a single extreme opinion shifts the aggregate, and its influence grows without bound as $P_0 \to \delta_k$.
@@ -206,7 +206,7 @@ discrete realized outcome $y$, the Ranked Probability Score satisfies
   \mathrm{RPS}(G,\, y) \;=\; W_1(G,\,\delta_y)^2 + \text{const},
 \]
 where $\delta_y$ is the point mass at $y$.
-Consequently, minimising expected RPS over the aggregate is equivalent to minimising the
+Consequently, minimizing expected RPS over the aggregate is equivalent to minimizing the
 expected squared $W_1$ distance between the aggregate and the true outcome distribution.
 The $W_1$ barycenter (Proposition~\ref{prop:w1}) is therefore the natural aggregate under
 the RPS objective: it is the Fr\'echet mean of the panel under the transport metric that
@@ -379,7 +379,7 @@ itself to adapt.
 
 All aggregation methods studied in this paper are instances of a common framework.
 Given a panel $\{P_1,\ldots,P_n\} \subset \Delta_{K-1}$ at time $t$ and a
-parametrised ground cost $c_\theta: \Delta_{K-1} \times \Delta_{K-1} \to \mathbb{R}_{\geq 0}$,
+parameterized ground cost $c_\theta: \Delta_{K-1} \times \Delta_{K-1} \to \mathbb{R}_{\geq 0}$,
 the \emph{learned barycentric aggregate} is
 \begin{equation}
   \mu_t^* \;=\; \arg\min_{\mu \in \Delta_{K-1}}
@@ -425,9 +425,9 @@ giving the containment
   \underbrace{F_{\tau(D_t)}(k) = Q_{\tau(D_t)}\{F_i(k)\}}_{\text{learned Q-Level selection}}.
   \label{eq:selection_hierarchy}
 \end{equation}
-This hierarchy of vertical Wasserstein-median selections, parameterised by their quantile level in the sense of \cite{carlier23}, organises the paper's contributions:
+This hierarchy of vertical Wasserstein-median selections, parameterized by their quantile level in the sense of \cite{carlier23}, organizes the paper's contributions:
 Sections~\ref{sec:wbary}--\ref{sec:robustness} study the fixed left endpoint;
-Section~\ref{sec:qlevel} characterises the full family;
+Section~\ref{sec:qlevel} characterizes the full family;
 Section~\ref{sec:empirical} asks where in the family the data place us.
 
 \subsection{The Q-Level Model}
@@ -470,9 +470,9 @@ The $W_1$ barycenter under ground cost $c_\tau$ solves
 \[
   \min_{\Psi} \;\sum_{i=1}^{n_t}\sum_{k=1}^{K-1} \rho_\tau\!\bigl(F_t^{(i)}(k) - \Psi(k)\bigr).
 \]
-For fixed $k$ the objective decouples across bins, so we minimise
+For fixed $k$ the objective decouples across bins, so we minimize
 $\psi \mapsto \sum_i \rho_\tau(F_t^{(i)}(k) - \psi)$ independently for each $k$.
-By the fundamental result of \cite{koenker78}, the unique minimiser of
+By the fundamental result of \cite{koenker78}, the unique minimizer of
 $\sum_i \rho_\tau(u_i - \psi)$ over $\psi \in \mathbb{R}$ is the empirical
 $\tau$-th quantile $Q_\tau(\{u_i\})$.
 Hence $\Psi^*(k) = Q_\tau(\{F_t^{(i)}(k)\}_i)$ for each $k$, which is exactly
@@ -480,7 +480,7 @@ $\hat{G}_t^\theta(k)$.
 \end{proof}
 
 \begin{remark}[CDF validity]
-The minimiser $\Psi^*(k) = Q_\tau(\{F_t^{(i)}(k)\}_i)$ is a valid CDF: applying the
+The minimizer $\Psi^*(k) = Q_\tau(\{F_t^{(i)}(k)\}_i)$ is a valid CDF: applying the
 $\tau$-th empirical quantile coordinatewise to $[0,1]$-valued sequences that are monotone
 in $k$ yields a sequence that inherits monotonicity and the boundary conditions
 $\Psi^*(0) = 0$, $\Psi^*(K-1) = 1$.
@@ -809,7 +809,7 @@ wins $70\%$ of quarters) but the margin does not reach conventional significance
 \label{sec:learned}
 \label{sec:lgb_spf}
 
-Table~\ref{tab:thread3_oos} and Figure~\ref{fig:leaderboard} summarise the full OOS performance leaderboard.
+Table~\ref{tab:thread3_oos} and Figure~\ref{fig:leaderboard} summarize the full OOS performance leaderboard.
 The Q-Level model achieves mean OOS RPS $= 0.417$ versus $0.493$ for the fixed $W_1$ barycenter
 and $0.501$ for the arithmetic mean, a reduction of $\mathbf{15.5\%}$ relative to BC
 ($p < 0.001$, Wilcoxon; $25.2\%$ in high-dispersion quarters).
@@ -845,7 +845,7 @@ LGB ($d=1$, Sinkhorn)      & 0.591 & $+18.0\%$ & $+19.8\%$ & 0.890 \\
 
 We train on the 2007:Q1--2016:Q4 SPF subsample ($T_{\mathrm{train}} = 40$ quarters) and
 evaluate OOS on 2017:Q1--2024:Q4 (32 quarters).
-Parameters $(\hat\alpha, \hat\beta)$ were estimated by Nelder-Mead with a fixed initialisation
+Parameters $(\hat\alpha, \hat\beta)$ were estimated by Nelder-Mead with a fixed initialization
 on the entire training window; no validation set, grid search, or adaptive stopping was used.
 
 \paragraph{Estimated parameters.}
@@ -956,9 +956,9 @@ Forecaster-level performance histories, such as lagged RPS, bias, sharpness, and
 \section{Robustness Theory: Weighted Variants}
 \label{app:robustness}
 
-\subsection*{Proof of Proposition~\ref{prop:w1} (CDF-Median Characterisation)}
+\subsection*{Proof of Proposition~\ref{prop:w1} (CDF-Median Characterization)}
 
-Since the $W_1$ objective separates across $k$, the unconstrained minimiser at each $k$ is the
+Since the $W_1$ objective separates across $k$, the unconstrained minimizer at each $k$ is the
 sample median of $\{F_j(k)\}_{j=1}^N$.  It remains to verify that the vector of
 componentwise medians constitutes a valid CDF, i.e., it is nondecreasing in $k$.  Since each
 $F_j$ is nondecreasing, $F_j(k)\le F_j(k+1)$ for every $j$.  If $x_j\le y_j$ for all $j$,
@@ -995,7 +995,7 @@ The optimal blend weight follows from minimizing $\mathrm{RPS}(\lambda\,\widehat
 For genuinely unordered outcome spaces, the trimmed mean has a structural defect: trimming
 requires a scalar ordering of forecasters, but any scalar ordering of unordered outcomes is
 arbitrary.  The $W_1$ barycenter---the coordinatewise median---is the unique
-aggregation rule equivariant to relabelling outcomes (Proposition~\ref{prop:c1} below),
+aggregation rule equivariant to relabeling outcomes (Proposition~\ref{prop:c1} below),
 and this equivariance implies a quantifiable Brier score advantage over the trimmed mean
 under directional contamination.
 
@@ -1157,7 +1157,7 @@ strictly increasing in $K$.
 \emph{Part~(i)}: By Theorem~\ref{thm:l1}, $\mathrm{BC}_k = \mathrm{median}_i(p^{(i)}_k)$.
 Then $\mathrm{BC}(\sigma_*\{p^{(i)}\})_k = \mathrm{median}_i(p^{(i)}_{\sigma^{-1}(k)}) =
 \mathrm{BC}_{\sigma^{-1}(k)} = (\sigma_*\mathrm{BC})_k$.
-TM trims on scalar $s^{(i)} = \sum_k k\cdot p^{(i)}_k$; under relabelling $\sigma$, this
+TM trims on scalar $s^{(i)} = \sum_k k\cdot p^{(i)}_k$; under relabeling $\sigma$, this
 becomes a different linear functional.  For any interior transposition $\sigma = (j_1 \leftrightarrow j_2)$
 with $1 \le j_1 < j_2 \le K-1$, the change in trimming scalar is
 $(j_2 - j_1)(p^{(i)}_{j_1} - p^{(i)}_{j_2})$, which varies across forecasters, changing
@@ -1535,7 +1535,7 @@ $M^2 \approx 0.25$, $\lambda^* \approx 0.70$.
 
 \subsection*{SPF Backtest: Extended Discussion}
 
-The historical backtest (Section~\ref{sec:spf_backtest}) shows the barycenter assigns more probability mass to the realized outcome bin in a majority of quarters, with a mean improvement of 15.6\% (0.424 vs.\ 0.367 AM), and achieves lower average RPS than the AM.  The advantage is concentrated in low-dispersion quarters; the AM recovers ground in high-dispersion quarters because its broader tail coverage reduces cumulative CDF deviations when extreme outcomes materialize.  The dispersion-adaptive convex blend achieves the lowest OOS RPS ($0.404$), versus $0.409$ for TM, $0.411$ for BC, and $0.423$ for AM.  The LP achieves the highest P(correct bin) ($0.491$) but the worst RPS ($0.486$), reflecting the $\ell^1$--$\ell^2$ mismatch: extreme concentration minimises $\ell^1$ error at the mode but amplifies squared CDF error in tail quarters.  Reliability diagrams (Figure~\ref{fig:reliability}) confirm no systematic miscalibration across methods; all four aggregates track the 45-degree line.
+The historical backtest (Section~\ref{sec:spf_backtest}) shows the barycenter assigns more probability mass to the realized outcome bin in a majority of quarters, with a mean improvement of 15.6\% (0.424 vs.\ 0.367 AM), and achieves lower average RPS than the AM.  The advantage is concentrated in low-dispersion quarters; the AM recovers ground in high-dispersion quarters because its broader tail coverage reduces cumulative CDF deviations when extreme outcomes materialize.  The dispersion-adaptive convex blend achieves the lowest OOS RPS ($0.404$), versus $0.409$ for TM, $0.411$ for BC, and $0.423$ for AM.  The LP achieves the highest P(correct bin) ($0.491$) but the worst RPS ($0.486$), reflecting the $\ell^1$--$\ell^2$ mismatch: extreme concentration minimizes $\ell^1$ error at the mode but amplifies squared CDF error in tail quarters.  Reliability diagrams (Figure~\ref{fig:reliability}) confirm no systematic miscalibration across methods; all four aggregates track the 45-degree line.
 
 \subsection*{ECB SPF Replication}
 
@@ -1791,7 +1791,7 @@ The most influential experts on the arithmetic mean are those whose allocations 
 \section{Full-Diagonal Criterion}
 \label{app:fulldiag}
 
-The following proposition extends Lemma~\ref{lem:ot_diagonal} from individual transport plans to the full barycenter solution: in any optimal solution, every transport plan simultaneously maximises its diagonal.
+The following proposition extends Lemma~\ref{lem:ot_diagonal} from individual transport plans to the full barycenter solution: in any optimal solution, every transport plan simultaneously maximizes its diagonal.
 
 \begin{proposition}[Full-Diagonal Criterion]
 \label{prop:fulldiag}
